@@ -1,20 +1,3 @@
-/*
- * Copyright (C) 2025 Velocity Contributors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.velocitypowered.proxy.listener;
 
 import com.velocitypowered.api.event.Subscribe;
@@ -22,16 +5,47 @@ import com.velocitypowered.api.event.command.CommandExecuteEvent;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.player.PlayerChatEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
+import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.scheduler.ScheduledTask;
 import com.velocitypowered.proxy.auth.AuthManager;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
-import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+
+import java.util.concurrent.TimeUnit;
 
 public class AuthEventListener {
 
     private final AuthManager authManager;
 
+    private ScheduledTask reminderTask;
+
+    // Możesz zdefiniować sobie stałą ze wspólnym prefiksem:
+    private static final String PREFIX = "<gold><bold>[BetterServer]</bold></gold> ";
+
     public AuthEventListener(AuthManager authManager) {
         this.authManager = authManager;
+
+
+        /*
+        // Utwórz zadanie cykliczne
+        this.reminderTask = proxyServer.getScheduler()
+                .buildTask(pluginInstance, () -> {
+                    proxyServer.getAllPlayers().stream()
+                            .filter(player -> player instanceof ConnectedPlayer)
+                            .map(player -> (ConnectedPlayer) player)
+                            .filter(cp -> !cp.isAuthenticated()) // tylko gracze niezalogowani
+                            .forEach(cp -> {
+                                cp.sendMessage(
+                                        MiniMessage.miniMessage().deserialize(
+                                                PREFIX + "<yellow>Remember to <white>/login</white> or <white>/register</white>!"
+                                        )
+                                );
+                            });
+                })
+                .repeat(15, TimeUnit.SECONDS)
+                .schedule();
+
+         */
     }
 
     // Blokowanie czatu
@@ -40,7 +54,11 @@ public class AuthEventListener {
         ConnectedPlayer player = (ConnectedPlayer) event.getPlayer();
         if (!player.isAuthenticated()) {
             event.setResult(PlayerChatEvent.ChatResult.denied());
-            player.sendMessage(Component.text("❌ Please log in before chatting."));
+            player.sendMessage(
+                    MiniMessage.miniMessage().deserialize(
+                            PREFIX + "<red><bold>You must log in before chatting!</bold></red>"
+                    )
+            );
         }
     }
 
@@ -53,10 +71,15 @@ public class AuthEventListener {
 
         String command = event.getCommand().toLowerCase();
 
+        // Tylko /login i /register są dozwolone, reszta blokowana
         if (!player.isAuthenticated()
                 && !(command.startsWith("login") || command.startsWith("register"))) {
             event.setResult(CommandExecuteEvent.CommandResult.denied());
-            player.sendMessage(Component.text("❌ You must log in first! Use /login or /register."));
+            player.sendMessage(
+                    MiniMessage.miniMessage().deserialize(
+                            PREFIX + "<red><bold>You must log in first! Use /login or /register.</bold></red>"
+                    )
+            );
         }
     }
 
@@ -65,7 +88,11 @@ public class AuthEventListener {
     public void onServerConnected(ServerConnectedEvent event) {
         ConnectedPlayer player = (ConnectedPlayer) event.getPlayer();
         if (!player.isAuthenticated()) {
-            player.sendMessage(Component.text("🔑 Please use /register <password> or /login <password> to continue."));
+            player.sendMessage(
+                    MiniMessage.miniMessage().deserialize(
+                            PREFIX + "<yellow>Please use <white>/register <password></white> or <white>/login <password></white> to continue."
+                    )
+            );
         }
     }
 

@@ -35,6 +35,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.player.ResourcePackInfo;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerInfo;
+import com.velocitypowered.api.scheduler.ScheduledTask;
 import com.velocitypowered.api.util.Favicon;
 import com.velocitypowered.api.util.GameProfile;
 import com.velocitypowered.api.util.ProxyVersion;
@@ -108,6 +109,7 @@ import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.audience.ForwardingAudience;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import org.apache.logging.log4j.LogManager;
@@ -171,6 +173,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   private @MonotonicNonNull Ratelimiter ipAttemptLimiter;
   private final VelocityEventManager eventManager;
   private final VelocityScheduler scheduler;
+  private ScheduledTask reminderTask;
   private final VelocityChannelRegistrar channelRegistrar = new VelocityChannelRegistrar();
   private final ServerListPingHandler serverListPingHandler;
 
@@ -325,7 +328,26 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
 
     new GlistCommand(this).register();
     new SendCommand(this).register();
-    eventManager.register(VelocityVirtualPlugin.INSTANCE, new AuthEventListener(authManager));
+    // Rejestracja eventów
+    AuthEventListener listener = new AuthEventListener(authManager);
+    this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, listener);
+
+    // Zadanie cykliczne (scheduler)
+    reminderTask = this.getScheduler()
+            .buildTask(VelocityVirtualPlugin.INSTANCE, () -> {
+              this.getAllPlayers().stream()
+                      .filter(player -> player instanceof ConnectedPlayer)
+                      .map(player -> (ConnectedPlayer) player)
+                      .filter(cp -> !cp.isAuthenticated())
+                      .forEach(cp -> {
+                        cp.sendMessage(MiniMessage.miniMessage().deserialize(
+                                "<gold><bold>[BetterServer]</bold></gold> <yellow>Remember to <white>/login</white> or <white>/register</white>!"
+                        ));
+                      });
+            })
+            .repeat(15, TimeUnit.SECONDS)
+            .schedule();
+
 
     this.doStartupConfigLoad();
 
@@ -704,6 +726,10 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
 
   public Ratelimiter getIpAttemptLimiter() {
     return ipAttemptLimiter;
+  }
+
+  public AuthManager getAuthManager() {
+    return this.authManager;
   }
 
   /**

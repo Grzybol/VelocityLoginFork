@@ -2,41 +2,46 @@ package com.velocitypowered.proxy.config;
 
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.moandjiezana.toml.Toml;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 
 public class AuthConfig {
     private final List<String> authServers;
     private final String authServer;
 
+    private final long sessionLength;           // w sekundach
+    private final int maxPasswordAttempts;      // ile razy można błędnie wpisać hasło
+    private final long attemptFailedLoginDelay; // ile sekund blokady
+
     public AuthConfig(ProxyServer server, Path dataDirectory) {
-        // Ścieżka do pliku konfiguracyjnego Velocity
         Path configPath = dataDirectory.resolve("velocity.toml");
 
-        // 1. Najpierw dopisujemy brakującą sekcję [auth] (jeśli potrzeba).
-        ensureAuthSectionExists(configPath);
+        // 1. Dopisujemy brakujące elementy w pliku.
+        ensureAuthKeysExist(configPath);
 
-        // 2. Wczytujemy config ponownie do obiektu Toml
+        // 2. Wczytujemy ponownie
         Toml toml = new Toml().read(configPath.toFile());
         Toml authTable = toml.getTable("auth");
-
-        // Zwróci null, jeśli ktoś całkowicie usunął "[auth]" z pliku w trakcie operacji
-        // lub występuje jakiś inny nietypowy problem.
         if (authTable == null) {
-            throw new IllegalStateException("Brak sekcji [auth] w configu velocity.toml, mimo prób utworzenia!");
+            throw new IllegalStateException("Brak sekcji [auth] w velocity.toml, mimo próby utworzenia!");
         }
 
-        // 3. Czytamy listę serwerów i nazwę serwera auth
-        // Można tu jeszcze dodać obronę np. przed tym, że authServers może być niewłaściwym typem itd.
+        // 3. Odczyt parametrów (z domyślnymi wartościami, jeśli w pliku brak jakiegoś klucza)
         this.authServers = authTable.getList("authServers");
         this.authServer = authTable.getString("authServer");
 
-        // Ewentualna walidacja:
+        this.sessionLength = authTable.getLong("sessionLength", 600L); // default 600s
+        this.maxPasswordAttempts = Math.toIntExact(authTable.getLong("maxPasswordAttempts", 3L));
+        this.attemptFailedLoginDelay = authTable.getLong("attemptFailedLoginDelay", 30L);
+
+        // 4. Walidacja
         if (this.authServers == null || this.authServers.isEmpty()) {
-            throw new IllegalStateException("authServers jest puste lub niepoprawne w [auth] sekcji velocity.toml");
+            throw new IllegalStateException("authServers jest puste w [auth] sekcji velocity.toml");
         }
         if (this.authServer == null || this.authServer.isEmpty()) {
             throw new IllegalStateException("authServer jest pusty w [auth] sekcji velocity.toml");
@@ -44,25 +49,26 @@ public class AuthConfig {
     }
 
     /**
-     * Sprawdza czy w pliku jest sekcja [auth], a jeśli nie - dopisuje ją na końcu wraz
-     * z wartościami domyślnymi.
+     * Metoda, która sprawdza:
+     * 1) Czy w ogóle jest [auth], jeśli nie - dopisuje cały blok
+     * 2) Jeśli jest [auth], to sprawdza, czy każdy klucz występuje (np. "authServers ="),
+     *    jeśli nie, dopisuje go z wartością domyślną na końcu pliku.
      */
-    private void ensureAuthSectionExists(Path configPath) {
+    private void ensureAuthKeysExist(Path configPath) {
         if (!Files.exists(configPath)) {
-            // Plik w ogóle nie istnieje - tutaj możesz zdecydować, czy chcesz tworzyć cały
-            // velocity.toml z jakimś minimalnym szablonem, czy rzucić wyjątek.
+            // Można ewentualnie stworzyć minimalny "velocity.toml", ale w praktyce przeważnie już istnieje.
             return;
         }
 
         try {
-            // Wczytujemy wszystkie linie
             List<String> lines = Files.readAllLines(configPath);
 
-            boolean hasAuthSection = lines.stream().anyMatch(line -> line.trim().equals("[auth]"));
+            boolean hasAuthSection = lines.stream()
+                    .anyMatch(line -> line.trim().equals("[auth]"));
 
             if (!hasAuthSection) {
-                // Dopisujemy brakującą sekcję [auth] na końcu
-                try (BufferedWriter writer = Files.newBufferedWriter(configPath, java.nio.file.StandardOpenOption.APPEND)) {
+                // Brak sekcji [auth] => dopisujemy cały blok
+                try (BufferedWriter writer = Files.newBufferedWriter(configPath, StandardOpenOption.APPEND)) {
                     writer.newLine();
                     writer.write("[auth]");
                     writer.newLine();
@@ -70,23 +76,84 @@ public class AuthConfig {
                     writer.newLine();
                     writer.write("authServers = [\"test\", \"factions\", \"minigames\"]");
                     writer.newLine();
-                    writer.write("# Nazwa serwera, do którego trafia nowo połączony gracz w celu zalogowania:");
+                    writer.write("# Nazwa serwera, do którego trafia nowy gracz w celu zalogowania:");
                     writer.newLine();
                     writer.write("authServer = \"auth\"");
                     writer.newLine();
-                    // Możesz dodać kolejne linie w razie potrzeby.
+                    writer.write("# Ile sekund trwa sesja po zalogowaniu? (domyślnie 600 = 10 min)");
+                    writer.newLine();
+                    writer.write("sessionLength = 600");
+                    writer.newLine();
+                    writer.write("# Ile razy można błędnie wpisać hasło?");
+                    writer.newLine();
+                    writer.write("maxPasswordAttempts = 3");
+                    writer.newLine();
+                    writer.write("# Po ilu sekundach od przekroczenia liczby prób znów można logować?");
+                    writer.newLine();
+                    writer.write("attemptFailedLoginDelay = 30");
+                    writer.newLine();
                 }
+            } else {
+                // Sekcja [auth] istnieje -> sprawdzamy poszczególne klucze
+                lines = appendKeyIfMissing(lines, "authServers =",
+                        "# Domyślna lista serwerów, na które przerzucimy gracza po zalogowaniu:",
+                        "authServers = [\"test\", \"factions\", \"minigames\"]");
+                lines = appendKeyIfMissing(lines, "authServer =",
+                        "# Nazwa serwera, do którego trafia nowy gracz w celu zalogowania:",
+                        "authServer = \"auth\"");
+                lines = appendKeyIfMissing(lines, "sessionLength =",
+                        "# Ile sekund trwa sesja po zalogowaniu? (domyślnie 600 = 10 min)",
+                        "sessionLength = 600");
+                lines = appendKeyIfMissing(lines, "maxPasswordAttempts =",
+                        "# Ile razy można błędnie wpisać hasło?",
+                        "maxPasswordAttempts = 3");
+                lines = appendKeyIfMissing(lines, "attemptFailedLoginDelay =",
+                        "# Po ilu sekundach od przekroczenia liczby prób znów można logować?",
+                        "attemptFailedLoginDelay = 30");
+
+                // Po ewentualnym dopisaniu kluczy - zapisujemy plik
+                Files.write(configPath, lines);
             }
+
         } catch (IOException e) {
-            throw new RuntimeException("Nie udało się dopisać sekcji [auth] do pliku configu!", e);
+            throw new RuntimeException("Nie udało się poprawnie obsłużyć sekcji [auth] w pliku configu!", e);
         }
     }
 
+    /**
+     * appendKeyIfMissing:
+     *  - Sprawdza, czy w podanych liniach pliku występuje klucz (np. "authServers =")
+     *  - Jeśli go nie ma, dodaje na końcu komentarz (comment) i wartość (valueLine).
+     *  - Zwraca zaktualizowaną listę linii (nie zapisuje od razu do pliku).
+     */
+    private List<String> appendKeyIfMissing(List<String> lines, String keyFragment, String comment, String valueLine) {
+        boolean found = lines.stream().anyMatch(line -> line.trim().startsWith(keyFragment));
+        if (!found) {
+            lines.add(""); // pusta linia
+            lines.add(comment);
+            lines.add(valueLine);
+        }
+        return lines;
+    }
+
+    // GETTERY
     public List<String> getAuthServers() {
         return authServers;
     }
 
     public String getAuthServer() {
         return authServer;
+    }
+
+    public long getSessionLength() {
+        return sessionLength;
+    }
+
+    public int getMaxPasswordAttempts() {
+        return maxPasswordAttempts;
+    }
+
+    public long getAttemptFailedLoginDelay() {
+        return attemptFailedLoginDelay;
     }
 }

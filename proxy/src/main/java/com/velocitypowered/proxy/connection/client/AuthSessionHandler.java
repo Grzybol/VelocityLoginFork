@@ -253,6 +253,50 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
       return null;
     });
   }
+
+
+  private CompletableFuture<Void> connectToInitialServer(ConnectedPlayer player) {
+    // 1. Spróbujmy auto-zalogować:
+    boolean autoLogged = server.getAuthManager()
+            .tryAutoLoginIfSessionActive(player.getUniqueId(), server.getAuthConfig().getSessionLength());
+
+    if (autoLogged) {
+      // Sesja gracza jest wciąż ważna -> ominąć serwer 'auth' i wysłać go na pierwszy wolny?
+      // Poniżej przykładowy kod, podobny do "sendToFirstAvailableServer":
+
+      Optional<RegisteredServer> optionalNormalSrv = server.getAuthConfig().getAuthServers().stream()
+              .filter(srvName -> !srvName.equalsIgnoreCase(server.getAuthConfig().getAuthServer()))
+              .map(srvName -> server.getServer(srvName))
+              .filter(Optional::isPresent)
+              .map(Optional::get)
+              .findFirst();
+
+      if (optionalNormalSrv.isPresent()) {
+        RegisteredServer normalServer = optionalNormalSrv.get();
+        player.sendMessage(Component.text("✔ Auto-logged in! Sending you to " + normalServer.getServerInfo().getName() + "..."));
+        player.createConnectionRequest(normalServer).fireAndForget();
+      } else {
+        player.sendMessage(Component.text("⚠️ No available server found for auto-login fallback."));
+      }
+
+      return CompletableFuture.completedFuture(null);
+    }
+
+    // 2. Jeśli NIE auto-zalogowany -> standardowo idzie na serwer 'auth'
+    String authServerName = server.getAuthConfig().getAuthServer();
+    Optional<RegisteredServer> optionalAuthSrv = server.getServer(authServerName);
+
+    if (optionalAuthSrv.isEmpty()) {
+      player.disconnect0(Component.text("No auth server found!"), true);
+      return CompletableFuture.completedFuture(null);
+    }
+
+    player.createConnectionRequest(optionalAuthSrv.get()).fireAndForget();
+    return CompletableFuture.completedFuture(null);
+  }
+
+
+  /*
   private CompletableFuture<Void> connectToInitialServer(ConnectedPlayer player) {
     // Pobierz nazwę serwera z configu velocity.toml
     // np. [auth] authServer = "auth"
@@ -271,6 +315,8 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
     player.createConnectionRequest(optionalAuthSrv.get()).fireAndForget();
     return CompletableFuture.completedFuture(null);
   }
+
+   */
 
 
   /*
