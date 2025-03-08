@@ -20,6 +20,8 @@ package com.velocitypowered.proxy;
 import com.velocitypowered.proxy.util.VelocityProperties;
 import io.netty.util.ResourceLeakDetector;
 import io.netty.util.ResourceLeakDetector.Level;
+
+import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.LogManager;
@@ -67,7 +69,7 @@ public class Velocity {
 
     long startTime = System.nanoTime();
 
-    VelocityServer server = new VelocityServer(options);
+    VelocityServer server = new VelocityServer(options, Path.of("."));
     server.start();
     Runtime.getRuntime().addShutdownHook(new Thread(() -> server.shutdown(false),
         "Shutdown thread"));

@@ -38,6 +38,8 @@ import com.velocitypowered.api.proxy.server.ServerInfo;
 import com.velocitypowered.api.util.Favicon;
 import com.velocitypowered.api.util.GameProfile;
 import com.velocitypowered.api.util.ProxyVersion;
+import com.velocitypowered.proxy.auth.AuthManager;
+import com.velocitypowered.proxy.command.AuthCommand;
 import com.velocitypowered.proxy.command.VelocityCommandManager;
 import com.velocitypowered.proxy.command.builtin.CallbackCommand;
 import com.velocitypowered.proxy.command.builtin.GlistCommand;
@@ -45,13 +47,17 @@ import com.velocitypowered.proxy.command.builtin.SendCommand;
 import com.velocitypowered.proxy.command.builtin.ServerCommand;
 import com.velocitypowered.proxy.command.builtin.ShutdownCommand;
 import com.velocitypowered.proxy.command.builtin.VelocityCommand;
+import com.velocitypowered.proxy.config.AuthConfig;
+import com.velocitypowered.proxy.config.MongoConfig;
 import com.velocitypowered.proxy.config.VelocityConfiguration;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
 import com.velocitypowered.proxy.connection.player.resourcepack.VelocityResourcePackInfo;
 import com.velocitypowered.proxy.connection.util.ServerListPingHandler;
 import com.velocitypowered.proxy.console.VelocityConsole;
 import com.velocitypowered.proxy.crypto.EncryptionUtils;
+import com.velocitypowered.proxy.database.MongoDBManager;
 import com.velocitypowered.proxy.event.VelocityEventManager;
+import com.velocitypowered.proxy.listener.AuthEventListener;
 import com.velocitypowered.proxy.network.ConnectionManager;
 import com.velocitypowered.proxy.plugin.VelocityPluginManager;
 import com.velocitypowered.proxy.plugin.loader.VelocityPluginContainer;
@@ -168,7 +174,14 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   private final VelocityChannelRegistrar channelRegistrar = new VelocityChannelRegistrar();
   private final ServerListPingHandler serverListPingHandler;
 
-  VelocityServer(final ProxyOptions options) {
+  private final Path dataDirectory;
+  private final AuthConfig authConfig;
+  private final AuthManager authManager;
+  private MongoConfig mongoConfig;
+  private MongoDBManager mongoDBManager;
+
+
+  VelocityServer(final ProxyOptions options, Path dataDirectory) {
     pluginManager = new VelocityPluginManager(this);
     eventManager = new VelocityEventManager(pluginManager);
     commandManager = new VelocityCommandManager(eventManager, pluginManager);
@@ -178,7 +191,22 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     servers = new ServerMap(this);
     serverListPingHandler = new ServerListPingHandler(this);
     this.options = options;
+    this.dataDirectory = dataDirectory;
+    this.authConfig = new AuthConfig(this, dataDirectory);
+    cm.logChannelInformation();
+    // 1. Tworzymy obiekt MongoConfig i wymuszamy istnienie sekcji [mongo]
+    this.mongoConfig = new MongoConfig(dataDirectory);
+
+    // 2. Na podstawie mongoConfig tworzymy i inicjalizujemy MongoDBManager
+    this.mongoDBManager = new MongoDBManager(
+            mongoConfig.getConnectionString(),
+            mongoConfig.getDatabaseName()
+    );
+    mongoDBManager.connect();
+    mongoDBManager.setupDatabase();
+    this.authManager = new AuthManager(mongoDBManager);
   }
+
 
   public KeyPair getServerKeyPair() {
     return serverKeyPair;
@@ -247,7 +275,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     // If you are using Minecraft in a security-sensitive application, *I don't know what to say.*
     serverKeyPair = EncryptionUtils.createRsaKeyPair(1024);
 
-    cm.logChannelInformation();
+
 
     // Initialize commands first
     final BrigadierCommand velocityParentCommand = VelocityCommand.create(this);
@@ -279,8 +307,25 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
             .build(),
         shutdownCommand
     );
+    commandManager.register(
+            commandManager.metaBuilder("register")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            new AuthCommand(authManager, this, authConfig)
+    );
+
+    commandManager.register(
+            commandManager.metaBuilder("login")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            new AuthCommand(authManager, this, authConfig)
+    );
+
+
+
     new GlistCommand(this).register();
     new SendCommand(this).register();
+    eventManager.register(VelocityVirtualPlugin.INSTANCE, new AuthEventListener(authManager));
 
     this.doStartupConfigLoad();
 
@@ -329,6 +374,9 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     } else {
       logger.warn("debug environment, metrics is disabled!");
     }
+  }
+  public MongoDBManager getMongoDBManager() {
+    return mongoDBManager;
   }
 
   private void registerTranslations() {
@@ -841,6 +889,10 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
       return PRE_1_20_3_PING_SERIALIZER;
     }
     return PRE_1_16_PING_SERIALIZER;
+  }
+
+  public AuthConfig getAuthConfig() {
+    return authConfig;
   }
 
   @Override

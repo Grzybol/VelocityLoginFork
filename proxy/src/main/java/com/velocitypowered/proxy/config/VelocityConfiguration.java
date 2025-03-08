@@ -91,6 +91,8 @@ public class VelocityConfiguration implements ProxyConfig {
   private @Nullable Favicon favicon;
   @Expose
   private boolean forceKeyAuthentication = true; // Added in 1.19
+  private List<String> authServers = List.of("lobby", "survival");
+  private String authServer = "auth"; // nowy parametr
 
   private VelocityConfiguration(Servers servers, ForcedHosts forcedHosts, Advanced advanced,
       Query query, Metrics metrics) {
@@ -281,6 +283,9 @@ public class VelocityConfiguration implements ProxyConfig {
   @Override
   public int getShowMaxPlayers() {
     return showMaxPlayers;
+  }
+  public String getAuthServer() {
+    return authServer;
   }
 
   @Override

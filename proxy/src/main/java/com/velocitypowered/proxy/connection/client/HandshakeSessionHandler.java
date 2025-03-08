@@ -123,6 +123,7 @@ public class HandshakeSessionHandler implements MinecraftSessionHandler {
     };
   }
 
+
   private void handleLogin(HandshakePacket handshake, InitialInboundConnection ic) {
     if (!handshake.getProtocolVersion().isSupported()) {
       // Bump connection into correct protocol state so that we can send the disconnect packet.

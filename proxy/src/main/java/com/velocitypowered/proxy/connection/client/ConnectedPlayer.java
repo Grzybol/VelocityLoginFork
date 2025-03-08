@@ -155,6 +155,8 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
    * The actual Minecraft connection. This is actually a wrapper object around the Netty channel.
    */
   private final MinecraftConnection connection;
+
+
   private final @Nullable InetSocketAddress virtualHost;
   private final @Nullable String rawVirtualHost;
   private final HandshakeIntent handshakeIntent;
@@ -193,6 +195,7 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
   private final ChatQueue chatQueue;
   private final ChatBuilderFactory chatBuilderFactory;
 
+
   ConnectedPlayer(VelocityServer server, GameProfile profile, MinecraftConnection connection,
                   @Nullable InetSocketAddress virtualHost, @Nullable String rawVirtualHost, boolean onlineMode,
                   HandshakeIntent handshakeIntent, @Nullable IdentifiedKey playerKey) {
@@ -218,6 +221,15 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
     this.chatBuilderFactory = new ChatBuilderFactory(this.getProtocolVersion());
     this.resourcePackHandler = ResourcePackHandler.create(this, server);
   }
+  private boolean authenticated = false;
+  public boolean isAuthenticated() {
+    return authenticated;
+  }
+
+  public void setAuthenticated(boolean authenticated) {
+    this.authenticated = authenticated;
+  }
+
 
   /**
    * Used for cleaning up resources during a disconnection.
@@ -413,6 +425,7 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
         .setType(type == MessageType.CHAT ? ChatType.CHAT : ChatType.SYSTEM)
         .toClient());
   }
+
 
   @Override
   public void sendActionBar(net.kyori.adventure.text.@NonNull Component message) {

@@ -253,7 +253,27 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
       return null;
     });
   }
+  private CompletableFuture<Void> connectToInitialServer(ConnectedPlayer player) {
+    // Pobierz nazwę serwera z configu velocity.toml
+    // np. [auth] authServer = "auth"
+    String authServerName = this.server.getAuthConfig().getAuthServer();
 
+    // Spróbuj go odnaleźć
+    Optional<RegisteredServer> optionalAuthSrv = server.getServer(authServerName);
+
+    // Obsłuż sytuację, kiedy gracz podał w configu nieistniejący serwer
+    if (optionalAuthSrv.isEmpty()) {
+      player.disconnect0(Component.text("No auth server found!"), true);
+      return CompletableFuture.completedFuture(null);
+    }
+
+    // Wrzucamy gracza na serwer auth
+    player.createConnectionRequest(optionalAuthSrv.get()).fireAndForget();
+    return CompletableFuture.completedFuture(null);
+  }
+
+
+  /*
   private CompletableFuture<Void> connectToInitialServer(ConnectedPlayer player) {
     Optional<RegisteredServer> initialFromConfig = player.getNextServerToTry();
     PlayerChooseInitialServerEvent event =
@@ -270,6 +290,8 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
       player.createConnectionRequest(toTry.get()).fireAndForget();
     }, mcConnection.eventLoop());
   }
+
+   */
 
   @Override
   public void handleUnknown(ByteBuf buf) {

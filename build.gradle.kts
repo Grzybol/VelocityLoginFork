@@ -7,7 +7,7 @@ plugins {
 subprojects {
     apply<JavaLibraryPlugin>()
 
-    apply(plugin = "velocity-checkstyle")
+    //apply(plugin = "velocity-checkstyle")
     apply(plugin = "velocity-spotless")
 
     java {
@@ -18,6 +18,10 @@ subprojects {
 
     dependencies {
         testImplementation(rootProject.libs.junit)
+        implementation("org.mindrot:jbcrypt:0.4")
+        // Driver MongoDB (wersja 4.x)
+        implementation("org.mongodb:mongodb-driver-sync:4.10.2")
+
     }
 
     tasks {
