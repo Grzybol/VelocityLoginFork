@@ -7,6 +7,7 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.proxy.config.AuthConfig;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
 import com.velocitypowered.proxy.database.MongoDBManager;
+import com.velocitypowered.proxy.lang.LangConfig;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bson.Document;
 import org.mindrot.jbcrypt.BCrypt;
@@ -37,11 +38,13 @@ public class AuthManager {
     // Do kiedy gracz jest zablokowany (epoch second)
     private final Map<UUID, Long> blockedUntil = new ConcurrentHashMap<>();
     record LastLoginInfo(long timestamp, String ip) {}
+    private final LangConfig langConfig;
 
 
-    public AuthManager(MongoDBManager mongoDBManager, AuthConfig authConfig,ProxyServer server) {
+    public AuthManager(MongoDBManager mongoDBManager, AuthConfig authConfig,ProxyServer server,LangConfig langConfig) {
         this.mongoDBManager = mongoDBManager;
         this.authConfig = authConfig;
+        this.langConfig = langConfig;
         this.server = server;
         MongoDatabase database = mongoDBManager.getDatabase();
         this.usersCollection = database.getCollection("users");
@@ -219,7 +222,7 @@ public class AuthManager {
                 srv -> player.createConnectionRequest(srv).fireAndForget(),
                 () -> player.sendMessage(
                         MiniMessage.miniMessage().deserialize(
-                                authConfig.getPrefix() + "<red>No available server found.</red>"
+                                authConfig.getPrefix() + langConfig.getMessage("no-auth-server")
                         )
                 )
         );

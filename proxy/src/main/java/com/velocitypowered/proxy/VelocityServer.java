@@ -58,6 +58,7 @@ import com.velocitypowered.proxy.console.VelocityConsole;
 import com.velocitypowered.proxy.crypto.EncryptionUtils;
 import com.velocitypowered.proxy.database.MongoDBManager;
 import com.velocitypowered.proxy.event.VelocityEventManager;
+import com.velocitypowered.proxy.lang.LangConfig;
 import com.velocitypowered.proxy.listener.AuthEventListener;
 import com.velocitypowered.proxy.network.ConnectionManager;
 import com.velocitypowered.proxy.plugin.VelocityPluginManager;
@@ -183,11 +184,13 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   private final AuthManager authManager;
   private MongoConfig mongoConfig;
   private MongoDBManager mongoDBManager;
+  private LangConfig langConfig;
 
 
   VelocityServer(final ProxyOptions options, Path dataDirectory) {
     pluginManager = new VelocityPluginManager(this);
     eventManager = new VelocityEventManager(pluginManager);
+    this.langConfig = new LangConfig(dataDirectory);
     commandManager = new VelocityCommandManager(eventManager, pluginManager);
     scheduler = new VelocityScheduler(pluginManager);
     console = new VelocityConsole(this);
@@ -208,7 +211,9 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     );
     mongoDBManager.connect();
     mongoDBManager.setupDatabase();
-    this.authManager = new AuthManager(mongoDBManager, authConfig,this);
+    this.authManager = new AuthManager(mongoDBManager, authConfig,this,langConfig);
+
+
   }
 
 
@@ -279,7 +284,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     // If you are using Minecraft in a security-sensitive application, *I don't know what to say.*
     serverKeyPair = EncryptionUtils.createRsaKeyPair(1024);
 
-
+    AuthCommand authCommand = new AuthCommand(authManager, this, authConfig,langConfig);
 
     // Initialize commands first
     final BrigadierCommand velocityParentCommand = VelocityCommand.create(this);
@@ -315,14 +320,14 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
             commandManager.metaBuilder("register")
                     .plugin(VelocityVirtualPlugin.INSTANCE)
                     .build(),
-            new AuthCommand(authManager, this, authConfig)
+            authCommand
     );
 
     commandManager.register(
             commandManager.metaBuilder("login")
                     .plugin(VelocityVirtualPlugin.INSTANCE)
                     .build(),
-            new AuthCommand(authManager, this, authConfig)
+            authCommand
     );
 
 
@@ -330,7 +335,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     new GlistCommand(this).register();
     new SendCommand(this).register();
     // Rejestracja eventów
-    AuthEventListener listener = new AuthEventListener(authManager,authConfig);
+    AuthEventListener listener = new AuthEventListener(authManager,authConfig,langConfig);
     this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, listener);
 
     // Zadanie cykliczne (scheduler)
@@ -346,7 +351,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
                               .equalsIgnoreCase(authConfig.getAuthServer()))
                       .forEach(cp -> {
                         cp.sendMessage(MiniMessage.miniMessage().deserialize(
-                                "<gold><bold>[BetterServer]</bold></gold> <yellow>Remember to <white>/login</white> or <white>/register</white>!"
+                                langConfig.getMessage("login-reminder")
                         ));
                       });
             })

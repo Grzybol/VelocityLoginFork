@@ -11,6 +11,7 @@ import com.velocitypowered.proxy.auth.AuthManager;
 import com.velocitypowered.proxy.command.AuthCommand;
 import com.velocitypowered.proxy.config.AuthConfig;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
+import com.velocitypowered.proxy.lang.LangConfig;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.util.concurrent.TimeUnit;
@@ -23,9 +24,11 @@ public class AuthEventListener {
 
     // Możesz zdefiniować sobie stałą ze wspólnym prefiksem:
     private final AuthConfig authConfig;
+    private final LangConfig langConfig;
 
-    public AuthEventListener(AuthManager authManager, AuthConfig authConfig) {
+    public AuthEventListener(AuthManager authManager, AuthConfig authConfig, LangConfig langConfig) {
         this.authConfig = authConfig;
+        this.langConfig = langConfig;
         this.authManager = authManager;
 
 
@@ -59,7 +62,7 @@ public class AuthEventListener {
             event.setResult(PlayerChatEvent.ChatResult.denied());
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<red><bold>You must log in before chatting!</bold></red>"
+                            authConfig.getPrefix() + langConfig.getMessage("chat-blocked")
                     )
             );
         }
@@ -80,7 +83,7 @@ public class AuthEventListener {
             event.setResult(CommandExecuteEvent.CommandResult.denied());
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<red><bold>You must log in first! Use /login or /register.</bold></red>"
+                            authConfig.getPrefix() + langConfig.getMessage("command-blocked")
                     )
             );
         }
@@ -93,7 +96,7 @@ public class AuthEventListener {
         if (!player.isAuthenticated()) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<yellow>Please use <white>/register <password></white> or <white>/login <password></white> to continue."
+                            authConfig.getPrefix() + langConfig.getMessage("not-logged-in")
                     )
             );
         }

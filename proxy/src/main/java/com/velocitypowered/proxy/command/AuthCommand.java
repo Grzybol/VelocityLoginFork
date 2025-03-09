@@ -6,6 +6,7 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.proxy.auth.AuthManager;
 import com.velocitypowered.proxy.config.AuthConfig;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
+import com.velocitypowered.proxy.lang.LangConfig;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.util.Optional;
@@ -15,11 +16,13 @@ public class AuthCommand implements SimpleCommand {
     private final AuthManager authManager;
     private final ProxyServer server;
     private final AuthConfig authConfig;
+    private final LangConfig langConfig;
 
-    public AuthCommand(AuthManager authManager, ProxyServer server, AuthConfig authConfig) {
+    public AuthCommand(AuthManager authManager, ProxyServer server, AuthConfig authConfig, LangConfig langConfig) {
         this.authManager = authManager;
         this.server = server;
         this.authConfig = authConfig;
+        this.langConfig = langConfig;
     }
 
     @Override
@@ -38,7 +41,7 @@ public class AuthCommand implements SimpleCommand {
         if (authManager.hasValidSession(player.getUniqueId(),ip)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<green>You still have a valid session. No need to re-login.</green>"
+                            authConfig.getPrefix() + langConfig.getMessage("session-still-valid")
                     )
             );
             sendToFirstAvailableServer(player);
@@ -65,8 +68,8 @@ public class AuthCommand implements SimpleCommand {
 
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<red>You are blocked from login attempts for <bold>"
-                                    + secondsLeft + "</bold> more seconds.</red>"
+                            authConfig.getPrefix() + langConfig.getMessage("blocked-login-time-left")
+                                    + secondsLeft + "</bold>s.</red>"
                     )
             );
             return;
@@ -78,14 +81,14 @@ public class AuthCommand implements SimpleCommand {
             if (authManager.hasValidSession(player.getUniqueId(),ip)) {
                 player.sendMessage(
                         MiniMessage.miniMessage().deserialize(
-                                authConfig.getPrefix() + "<yellow>You are already logged in!</yellow>"
+                                authConfig.getPrefix() + langConfig.getMessage("already-logged-in")
                         )
                 );
                 sendToFirstAvailableServer(player);
                 return;
             }
             player.sendMessage(MiniMessage.miniMessage().deserialize(
-                    authConfig.getPrefix() + "<yellow>Usage: /register <password> <confirmPassword> or /login <password></yellow>"
+                    authConfig.getPrefix() + langConfig.getMessage("not-logged-in")
             ));
             return;
         }
@@ -95,7 +98,7 @@ public class AuthCommand implements SimpleCommand {
         if (command.equals("register")) {
             if (args.length != 2) {
                 player.sendMessage(MiniMessage.miniMessage().deserialize(
-                        authConfig.getPrefix() + "<yellow>Usage: <white>/register <password> <confirmPassword></white></yellow>"
+                        authConfig.getPrefix() + langConfig.getMessage("register-usage")
                 ));
                 return;
             }
@@ -103,7 +106,7 @@ public class AuthCommand implements SimpleCommand {
         } else if (command.equals("login")) {
             if (args.length != 1 && args.length != 2) {
                 player.sendMessage(MiniMessage.miniMessage().deserialize(
-                        authConfig.getPrefix() + "<yellow>Usage: <white>/login <password></white></yellow>"
+                        authConfig.getPrefix() + langConfig.getMessage("login-usage")
                 ));
                 return;
             }
@@ -123,7 +126,7 @@ public class AuthCommand implements SimpleCommand {
         if (!pass1.equals(pass2)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<red>Passwords do not match!</red>"
+                            authConfig.getPrefix() + langConfig.getMessage("passwords-dont-match")
                     )
             );
             return;
@@ -131,7 +134,7 @@ public class AuthCommand implements SimpleCommand {
         if (!authManager.isValidPassword(pass1)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<red>Password must be at least 6 chars and contain 1 special character!</red>"
+                            authConfig.getPrefix() + langConfig.getMessage("password-dont-meet-exp")
                     )
             );
             return;
@@ -141,7 +144,7 @@ public class AuthCommand implements SimpleCommand {
         if (authManager.register(player.getUniqueId(), pass1)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<green>Successfully registered! Now logging you in...</green>"
+                            authConfig.getPrefix() + langConfig.getMessage("register-success")
                     )
             );
 
@@ -151,7 +154,7 @@ public class AuthCommand implements SimpleCommand {
         } else {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<yellow>You are already registered. Please use <white>/login</white>.</yellow>"
+                            authConfig.getPrefix() + langConfig.getMessage("already-registered")
                     )
             );
         }
@@ -163,7 +166,7 @@ public class AuthCommand implements SimpleCommand {
         if (player.isAuthenticated() && authManager.hasValidSession(player.getUniqueId(),ip)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<yellow>You are already logged in!</yellow>"
+                            authConfig.getPrefix() + langConfig.getMessage("already-logged-in")
                     )
             );
             sendToFirstAvailableServer(player);
@@ -174,7 +177,7 @@ public class AuthCommand implements SimpleCommand {
             player.setAuthenticated(true);
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<green>Successfully logged in!</green>"
+                            authConfig.getPrefix() + langConfig.getMessage("login-success")
                     )
             );
             sendToFirstAvailableServer(player);
@@ -184,14 +187,14 @@ public class AuthCommand implements SimpleCommand {
             if (justBlocked) {
                 player.sendMessage(
                         MiniMessage.miniMessage().deserialize(
-                                authConfig.getPrefix() + "<red>Too many login attempts! You are blocked for <bold>"
-                                        + authConfig.getAttemptFailedLoginDelay() + "</bold> seconds.</red>"
+                                authConfig.getPrefix() + langConfig.getMessage("blocked-login-time")
+                                        + authConfig.getAttemptFailedLoginDelay() + "</bold> s.</red>"
                         )
                 );
             } else {
                 player.sendMessage(
                         MiniMessage.miniMessage().deserialize(
-                                authConfig.getPrefix() + "<red>Incorrect password or you're not registered.</red>"
+                                authConfig.getPrefix() + langConfig.getMessage("invalid-password")
                         )
                 );
             }
@@ -210,7 +213,7 @@ public class AuthCommand implements SimpleCommand {
                 srv -> player.createConnectionRequest(srv).fireAndForget(),
                 () -> player.sendMessage(
                         MiniMessage.miniMessage().deserialize(
-                                authConfig.getPrefix() + "<red>No available server found.</red>"
+                                authConfig.getPrefix() + langConfig.getMessage("no-available-servers")
                         )
                 )
         );
