@@ -106,6 +106,7 @@ public class AuthEventListener {
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
         ConnectedPlayer player = (ConnectedPlayer) event.getPlayer();
-        authManager.logout(player.getUniqueId());
+        String ip = player.getRemoteAddress().getAddress().getHostAddress();
+        authManager.logout(player.getUniqueId(), ip);
     }
 }

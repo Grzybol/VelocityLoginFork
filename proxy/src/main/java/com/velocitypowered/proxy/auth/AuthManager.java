@@ -99,9 +99,11 @@ public class AuthManager {
         return true;
     }
 
-    public void logout(UUID playerId) {
+    public void logout(UUID playerId, String ip) {
         authenticatedUsers.remove(playerId);
-        //lastLoginTime.remove(playerId);
+        long loginTimestamp =  System.currentTimeMillis();
+        lastLoginTime.put(playerId, new LastLoginInfo(loginTimestamp, ip));
+        logger.info("lastLoginTime player: "+lastLoginTime.get(playerId)+", player: "+playerId+", loginTimestamp: "+loginTimestamp+", ip: "+ip);
         //failedAttempts.remove(playerId);
         //blockedUntil.remove(playerId);
     }
