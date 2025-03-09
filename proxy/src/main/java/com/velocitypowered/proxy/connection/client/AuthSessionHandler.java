@@ -256,9 +256,10 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
 
 
   private CompletableFuture<Void> connectToInitialServer(ConnectedPlayer player) {
+    String ip = player.getRemoteAddress().getAddress().getHostAddress();
     // 1. Spróbujmy auto-zalogować:
     boolean autoLogged = server.getAuthManager()
-            .tryAutoLoginIfSessionActive(player.getUniqueId(), server.getAuthConfig().getSessionLength());
+            .tryAutoLoginIfSessionActive(player.getUniqueId(),ip);
 
     if (autoLogged) {
       // Sesja gracza jest wciąż ważna -> ominąć serwer 'auth' i wysłać go na pierwszy wolny?
@@ -274,9 +275,11 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
       if (optionalNormalSrv.isPresent()) {
         RegisteredServer normalServer = optionalNormalSrv.get();
         player.sendMessage(Component.text("✔ Auto-logged in! Sending you to " + normalServer.getServerInfo().getName() + "..."));
+        logger.info("Auto-logged in player {} to {}", player.getUsername(), normalServer.getServerInfo().getName());
         player.createConnectionRequest(normalServer).fireAndForget();
       } else {
         player.sendMessage(Component.text("⚠️ No available server found for auto-login fallback."));
+        logger.warn("No available server found for auto-login fallback for player {}", player.getUsername());
       }
 
       return CompletableFuture.completedFuture(null);

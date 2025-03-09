@@ -17,6 +17,7 @@ public class AuthConfig {
     private final long sessionLength;           // w sekundach
     private final int maxPasswordAttempts;      // ile razy można błędnie wpisać hasło
     private final long attemptFailedLoginDelay; // ile sekund blokady
+    private static final String PREFIX = "<gold><bold>[BetterServer]</bold></gold> ";
 
     public AuthConfig(ProxyServer server, Path dataDirectory) {
         Path configPath = dataDirectory.resolve("velocity.toml");
@@ -92,6 +93,7 @@ public class AuthConfig {
                     writer.newLine();
                     writer.write("attemptFailedLoginDelay = 30");
                     writer.newLine();
+                    writer.write("prefix = \"<gold><bold>[BetterServer]</bold></gold> \"");
                 }
             } else {
                 // Sekcja [auth] istnieje -> sprawdzamy poszczególne klucze
@@ -110,6 +112,9 @@ public class AuthConfig {
                 lines = appendKeyIfMissing(lines, "attemptFailedLoginDelay =",
                         "# Po ilu sekundach od przekroczenia liczby prób znów można logować?",
                         "attemptFailedLoginDelay = 30");
+                lines = appendKeyIfMissing(lines, "prefix =",
+                        "#prefix = \"<gold><bold>[BetterServer]</bold></gold> \"",
+                        "prefix = \"<gold><bold>[BetterServer]</bold></gold> \"");
 
                 // Po ewentualnym dopisaniu kluczy - zapisujemy plik
                 Files.write(configPath, lines);
@@ -147,6 +152,9 @@ public class AuthConfig {
 
     public long getSessionLength() {
         return sessionLength;
+    }
+    public String getPrefix() {
+        return PREFIX;
     }
 
     public int getMaxPasswordAttempts() {

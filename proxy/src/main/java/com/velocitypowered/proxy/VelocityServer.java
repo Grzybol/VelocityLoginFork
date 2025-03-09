@@ -128,6 +128,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   public static final String VELOCITY_URL = "https://velocitypowered.com";
 
   private static final Logger logger = LogManager.getLogger(VelocityServer.class);
+  private static final String PREFIX = "<gold><bold>[BetterServer]</bold></gold> ";
   public static final Gson GENERAL_GSON = new GsonBuilder()
       .registerTypeHierarchyAdapter(Favicon.class, FaviconSerializer.INSTANCE)
       .registerTypeHierarchyAdapter(GameProfile.class, GameProfileSerializer.INSTANCE)
@@ -207,7 +208,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     );
     mongoDBManager.connect();
     mongoDBManager.setupDatabase();
-    this.authManager = new AuthManager(mongoDBManager);
+    this.authManager = new AuthManager(mongoDBManager, authConfig,this);
   }
 
 
@@ -329,7 +330,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     new GlistCommand(this).register();
     new SendCommand(this).register();
     // Rejestracja eventów
-    AuthEventListener listener = new AuthEventListener(authManager);
+    AuthEventListener listener = new AuthEventListener(authManager,authConfig);
     this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, listener);
 
     // Zadanie cykliczne (scheduler)
@@ -339,6 +340,10 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
                       .filter(player -> player instanceof ConnectedPlayer)
                       .map(player -> (ConnectedPlayer) player)
                       .filter(cp -> !cp.isAuthenticated())
+                      .filter(cp -> cp.getCurrentServer().isPresent()) // ...są na jakimś serwerze
+                      // ...i nazwa serwera == authServer z configu
+                      .filter(cp -> cp.getCurrentServer().get().getServerInfo().getName()
+                              .equalsIgnoreCase(authConfig.getAuthServer()))
                       .forEach(cp -> {
                         cp.sendMessage(MiniMessage.miniMessage().deserialize(
                                 "<gold><bold>[BetterServer]</bold></gold> <yellow>Remember to <white>/login</white> or <white>/register</white>!"
@@ -401,6 +406,9 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     return mongoDBManager;
   }
 
+  public String getPrefix() {
+    return PREFIX;
+  }
   private void registerTranslations() {
     final TranslationRegistry translationRegistry = TranslationRegistry
         .create(Key.key("velocity", "translations"));

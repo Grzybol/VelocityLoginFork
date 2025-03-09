@@ -8,33 +8,13 @@ import com.velocitypowered.proxy.config.AuthConfig;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
-import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.regex.Pattern;
 
 public class AuthCommand implements SimpleCommand {
 
     private final AuthManager authManager;
     private final ProxyServer server;
     private final AuthConfig authConfig;
-
-    // Mapa: gracz -> czas ostatniego pomyślnego logowania (epoch seconds)
-    private final Map<UUID, Long> lastLoginTime = new HashMap<>();
-
-    // Mapa: gracz -> liczba nieudanych prób logowania
-    private final Map<UUID, Integer> failedAttempts = new HashMap<>();
-
-    // Mapa: gracz -> do kiedy jest zablokowany
-    private final Map<UUID, Long> blockedUntil = new HashMap<>();
-
-    // Definicja "znaku specjalnego": cokolwiek nie będące literą/cyfrą.
-    private static final Pattern SPECIAL_CHAR = Pattern.compile("[^a-zA-Z0-9]");
-
-    // Prefix, który chcemy dodać do każdej wiadomości
-    private static final String PREFIX = "<gold><bold>[BetterServer]</bold></gold> ";
 
     public AuthCommand(AuthManager authManager, ProxyServer server, AuthConfig authConfig) {
         this.authManager = authManager;
@@ -47,72 +27,91 @@ public class AuthCommand implements SimpleCommand {
         if (!(invocation.source() instanceof ConnectedPlayer player)) {
             invocation.source().sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<yellow>Only players can execute this command!</yellow>"
+                            authConfig.getPrefix() + "<yellow>Only players can execute this command!</yellow>"
                     )
             );
             return;
         }
+        String ip = player.getRemoteAddress().getAddress().getHostAddress();
 
-        // Sprawdź czy gracz ma aktywną sesję
-        if (hasValidSession(player)) {
+        // Czy gracz ma wciąż ważną sesję => auto-login i przeniesienie
+        if (authManager.hasValidSession(player.getUniqueId(),ip)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<green>You still have a valid session. No need to re-login.</green>"
+                            authConfig.getPrefix() + "<green>You still have a valid session. No need to re-login.</green>"
                     )
             );
+            sendToFirstAvailableServer(player);
             return;
         }
 
-        // Sprawdź czy gracz jest zablokowany
-        if (isBlocked(player)) {
-            long now = Instant.now().getEpochSecond();
-            long unblockedAt = blockedUntil.getOrDefault(player.getUniqueId(), 0L);
-            long secondsLeft = unblockedAt - now;
+        // Sprawdź czy jest zablokowany
+        if (authManager.isBlocked(player.getUniqueId())) {
+            long now = System.currentTimeMillis() / 1000; // sekundy
+            // Do kiedy zablokowany:
+            // => authManager ma mapę blockedUntil, ale możemy też dać getter getBlockedUntilTime()
+            //    lub liczyć to localnie. Dla przykładu:
+            //    W AuthManager nie mamy gettera, więc  w sumie potrzebujesz np. public getBlockedUntilMap()
+            //    lub innej metody. Dla minimalnego przykładu robimy copy-paste logic:
+            //
+            // (Lepszy design -> dodać metodę getBlockedUntil(playerId) w AuthManager).
+
+            // Zakładamy, że AuthManager ma public Map<UUID, Long> getBlockedUntilMap() {return blockedUntil;}
+            // jeżeli wolisz, lub stwórz metodę getBlockedTimeLeft(...) w AuthManager.
+
+            long unblockedAt = authManager.getBlockedUntilTime(player.getUniqueId()); // Dodaj taką metodę w managerze
+            long secondsLeft = unblockedAt - (now / 1);
             if (secondsLeft < 0) secondsLeft = 0;
+
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<red>You are blocked from login attempts for <bold>" + secondsLeft + "</bold> more seconds.</red>"
+                            authConfig.getPrefix() + "<red>You are blocked from login attempts for <bold>"
+                                    + secondsLeft + "</bold> more seconds.</red>"
                     )
             );
             return;
         }
 
+        // Parsowanie komend
         String[] args = invocation.arguments();
-        if (args.length < 2 && args[0].equalsIgnoreCase("register")) {
-            player.sendMessage(
-                    MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<yellow>Usage: <white>/register <password> <confirm></white> or <white>/login <password></white></yellow>"
-                    )
-            );
+        if (args.length < 1) {
+            if (authManager.hasValidSession(player.getUniqueId(),ip)) {
+                player.sendMessage(
+                        MiniMessage.miniMessage().deserialize(
+                                authConfig.getPrefix() + "<yellow>You are already logged in!</yellow>"
+                        )
+                );
+                sendToFirstAvailableServer(player);
+                return;
+            }
+            player.sendMessage(MiniMessage.miniMessage().deserialize(
+                    authConfig.getPrefix() + "<yellow>Usage: /register <password> <confirmPassword> or /login <password></yellow>"
+            ));
             return;
         }
 
         String command = invocation.alias().toLowerCase();
 
-        // /register wymaga 2 argumentów, /login – 1 argumentu
-        if (command.equals("register") && args.length != 2) {
+        if (command.equals("register")) {
+            if (args.length != 2) {
+                player.sendMessage(MiniMessage.miniMessage().deserialize(
+                        authConfig.getPrefix() + "<yellow>Usage: <white>/register <password> <confirmPassword></white></yellow>"
+                ));
+                return;
+            }
+            handleRegister(player, args[0], args[1]);
+        } else if (command.equals("login")) {
+            if (args.length != 1 && args.length != 2) {
+                player.sendMessage(MiniMessage.miniMessage().deserialize(
+                        authConfig.getPrefix() + "<yellow>Usage: <white>/login <password></white></yellow>"
+                ));
+                return;
+            }
+            handleLogin(player, args[0],ip);
+        } else {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<yellow>Usage: <white>/register <password> <confirm></white></yellow>"
-                    )
-            );
-            return;
-        }
-        if (command.equals("login") && args.length != 1 && args.length != 2) {
-            player.sendMessage(
-                    MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<yellow>Usage: <white>/login <password></white></yellow>"
-                    )
-            );
-            return;
-        }
-
-        switch (command) {
-            case "register" -> handleRegister(player, args[0], args[1]);
-            case "login"    -> handleLogin(player, args[0]);
-            default -> player.sendMessage(
-                    MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<red>Unknown authentication command.</red>"
+                            authConfig.getPrefix() + "<red>Unknown authentication command.</red>"
                     )
             );
         }
@@ -120,18 +119,19 @@ public class AuthCommand implements SimpleCommand {
 
     // ========== REJESTRACJA ============
     private void handleRegister(ConnectedPlayer player, String pass1, String pass2) {
+        String ip = player.getRemoteAddress().getAddress().getHostAddress();
         if (!pass1.equals(pass2)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<red>Passwords do not match!</red>"
+                            authConfig.getPrefix() + "<red>Passwords do not match!</red>"
                     )
             );
             return;
         }
-        if (!isValidPassword(pass1)) {
+        if (!authManager.isValidPassword(pass1)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<red>Password must be at least 6 chars and contain 1 special character!</red>"
+                            authConfig.getPrefix() + "<red>Password must be at least 6 chars and contain 1 special character!</red>"
                     )
             );
             return;
@@ -141,109 +141,61 @@ public class AuthCommand implements SimpleCommand {
         if (authManager.register(player.getUniqueId(), pass1)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<green>Successfully registered! Now logging you in...</green>"
+                            authConfig.getPrefix() + "<green>Successfully registered! Now logging you in...</green>"
                     )
             );
 
-            // logujemy
-            authManager.login(player.getUniqueId(), pass1);
+            authManager.login(player.getUniqueId(), pass1,ip);
             player.setAuthenticated(true);
-            lastLoginTime.put(player.getUniqueId(), Instant.now().getEpochSecond());
-            failedAttempts.remove(player.getUniqueId());
-            blockedUntil.remove(player.getUniqueId());
-
             sendToFirstAvailableServer(player);
         } else {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<yellow>You are already registered. Please use <white>/login</white>.</yellow>"
+                            authConfig.getPrefix() + "<yellow>You are already registered. Please use <white>/login</white>.</yellow>"
                     )
             );
         }
     }
 
     // ========== LOGOWANIE ============
-    private void handleLogin(ConnectedPlayer player, String password) {
-        if (player.isAuthenticated() && hasValidSession(player)) {
+    private void handleLogin(ConnectedPlayer player, String password,String ip) {
+        // Może już jest zalogowany i ma ważną sesję
+        if (player.isAuthenticated() && authManager.hasValidSession(player.getUniqueId(),ip)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<yellow>You are already logged in!</yellow>"
+                            authConfig.getPrefix() + "<yellow>You are already logged in!</yellow>"
                     )
             );
+            sendToFirstAvailableServer(player);
             return;
         }
 
-        if (authManager.login(player.getUniqueId(), password)) {
-            // Sukces logowania
+        if (authManager.login(player.getUniqueId(), password,ip)) {
             player.setAuthenticated(true);
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<green>Successfully logged in!</green>"
+                            authConfig.getPrefix() + "<green>Successfully logged in!</green>"
                     )
             );
-            lastLoginTime.put(player.getUniqueId(), Instant.now().getEpochSecond());
-
-            failedAttempts.remove(player.getUniqueId());
-            blockedUntil.remove(player.getUniqueId());
-
             sendToFirstAvailableServer(player);
         } else {
-            // Nieudana próba
-            incrementFailedAttempt(player);
-            player.sendMessage(
-                    MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<red>Incorrect password or you're not registered.</red>"
-                    )
-            );
+            // Nieudana próba logowania => zwiększamy licznik
+            boolean justBlocked = authManager.incrementFailedAttempt(player.getUniqueId());
+            if (justBlocked) {
+                player.sendMessage(
+                        MiniMessage.miniMessage().deserialize(
+                                authConfig.getPrefix() + "<red>Too many login attempts! You are blocked for <bold>"
+                                        + authConfig.getAttemptFailedLoginDelay() + "</bold> seconds.</red>"
+                        )
+                );
+            } else {
+                player.sendMessage(
+                        MiniMessage.miniMessage().deserialize(
+                                authConfig.getPrefix() + "<red>Incorrect password or you're not registered.</red>"
+                        )
+                );
+            }
         }
-    }
-
-    // ========== SPRAWDZANIE/INCREMENTOWANIE NIEUDANYCH PRÓB ============
-    private void incrementFailedAttempt(ConnectedPlayer player) {
-        UUID pid = player.getUniqueId();
-        int attempts = failedAttempts.getOrDefault(pid, 0);
-        attempts++;
-        failedAttempts.put(pid, attempts);
-
-        if (attempts >= authConfig.getMaxPasswordAttempts()) {
-            long blockUntilTime = Instant.now().getEpochSecond() + authConfig.getAttemptFailedLoginDelay();
-            blockedUntil.put(pid, blockUntilTime);
-            failedAttempts.remove(pid);
-
-            player.sendMessage(
-                    MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<red>Too many login attempts! You are blocked for <bold>"
-                                    + authConfig.getAttemptFailedLoginDelay() + "</bold> seconds.</red>"
-                    )
-            );
-        }
-    }
-
-    private boolean isBlocked(ConnectedPlayer player) {
-        UUID pid = player.getUniqueId();
-        long now = Instant.now().getEpochSecond();
-        long blocked = blockedUntil.getOrDefault(pid, 0L);
-        return now < blocked;
-    }
-
-    // ========== SPRAWDZANIE SESJI ============
-    private boolean hasValidSession(ConnectedPlayer player) {
-        Long lastLogin = lastLoginTime.get(player.getUniqueId());
-        if (lastLogin == null) {
-            return false;
-        }
-        long now = Instant.now().getEpochSecond();
-        long diff = now - lastLogin;
-        return diff < authConfig.getSessionLength();
-    }
-
-    // ========== WALIDACJA HASŁA ============
-    private boolean isValidPassword(String password) {
-        if (password.length() < 6) {
-            return false;
-        }
-        // Czy zawiera znak specjalny?
-        return SPECIAL_CHAR.matcher(password).find();
     }
 
     // ========== PRZENOSZENIE NA INNY SERWER ============
@@ -258,7 +210,7 @@ public class AuthCommand implements SimpleCommand {
                 srv -> player.createConnectionRequest(srv).fireAndForget(),
                 () -> player.sendMessage(
                         MiniMessage.miniMessage().deserialize(
-                                PREFIX + "<red>No available server found.</red>"
+                                authConfig.getPrefix() + "<red>No available server found.</red>"
                         )
                 )
         );

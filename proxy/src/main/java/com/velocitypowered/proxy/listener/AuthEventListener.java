@@ -8,6 +8,8 @@ import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.scheduler.ScheduledTask;
 import com.velocitypowered.proxy.auth.AuthManager;
+import com.velocitypowered.proxy.command.AuthCommand;
+import com.velocitypowered.proxy.config.AuthConfig;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
@@ -20,9 +22,10 @@ public class AuthEventListener {
     private ScheduledTask reminderTask;
 
     // Możesz zdefiniować sobie stałą ze wspólnym prefiksem:
-    private static final String PREFIX = "<gold><bold>[BetterServer]</bold></gold> ";
+    private final AuthConfig authConfig;
 
-    public AuthEventListener(AuthManager authManager) {
+    public AuthEventListener(AuthManager authManager, AuthConfig authConfig) {
+        this.authConfig = authConfig;
         this.authManager = authManager;
 
 
@@ -56,7 +59,7 @@ public class AuthEventListener {
             event.setResult(PlayerChatEvent.ChatResult.denied());
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<red><bold>You must log in before chatting!</bold></red>"
+                            authConfig.getPrefix() + "<red><bold>You must log in before chatting!</bold></red>"
                     )
             );
         }
@@ -77,7 +80,7 @@ public class AuthEventListener {
             event.setResult(CommandExecuteEvent.CommandResult.denied());
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<red><bold>You must log in first! Use /login or /register.</bold></red>"
+                            authConfig.getPrefix() + "<red><bold>You must log in first! Use /login or /register.</bold></red>"
                     )
             );
         }
@@ -90,7 +93,7 @@ public class AuthEventListener {
         if (!player.isAuthenticated()) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
-                            PREFIX + "<yellow>Please use <white>/register <password></white> or <white>/login <password></white> to continue."
+                            authConfig.getPrefix() + "<yellow>Please use <white>/register <password></white> or <white>/login <password></white> to continue."
                     )
             );
         }
