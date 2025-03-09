@@ -77,6 +77,7 @@ public class AuthCommand implements SimpleCommand {
 
         // Parsowanie komend
         String[] args = invocation.arguments();
+        String command = invocation.alias().toLowerCase();
         if (args.length < 1) {
             if (authManager.hasValidSession(player.getUniqueId(),ip)) {
                 player.sendMessage(
@@ -87,13 +88,25 @@ public class AuthCommand implements SimpleCommand {
                 sendToFirstAvailableServer(player);
                 return;
             }
+            if (command.equals("register")) {
+                player.sendMessage(MiniMessage.miniMessage().deserialize(
+                        authConfig.getPrefix() + langConfig.getMessage("register-usage")
+                ));
+                return;
+            }
+            if (command.equals("login")) {
+                player.sendMessage(MiniMessage.miniMessage().deserialize(
+                        authConfig.getPrefix() + langConfig.getMessage("login-usage")
+                ));
+                return;
+            }
             player.sendMessage(MiniMessage.miniMessage().deserialize(
                     authConfig.getPrefix() + langConfig.getMessage("not-logged-in")
             ));
             return;
         }
 
-        String command = invocation.alias().toLowerCase();
+
 
         if (command.equals("register")) {
             if (args.length != 2) {
