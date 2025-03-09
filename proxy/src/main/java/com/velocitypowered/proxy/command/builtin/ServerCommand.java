@@ -32,6 +32,8 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerInfo;
 import java.util.List;
 import java.util.Optional;
+
+import com.velocitypowered.proxy.config.AuthConfig;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TranslatableComponent;
@@ -45,15 +47,16 @@ public final class ServerCommand {
   private static final String SERVER_ARG = "server";
   public static final int MAX_SERVERS_TO_LIST = 50;
 
+
   @SuppressWarnings("checkstyle:MissingJavadocMethod")
-  public static BrigadierCommand create(final ProxyServer server) {
+  public static BrigadierCommand create(final ProxyServer server, String authServer) {
     final LiteralCommandNode<CommandSource> node = BrigadierCommand
         .literalArgumentBuilder("server")
         .requires(src -> src instanceof Player
                 && src.getPermissionValue("velocity.command.server") != Tristate.FALSE)
         .executes(ctx -> {
           final Player player = (Player) ctx.getSource();
-          outputServerInformation(player, server);
+          outputServerInformation(player, server,authServer);
           return Command.SINGLE_SUCCESS;
         })
         .then(BrigadierCommand.requiredArgumentBuilder(SERVER_ARG, StringArgumentType.word())
@@ -62,6 +65,9 @@ public final class ServerCommand {
                       ? StringArgumentType.getString(ctx, SERVER_ARG)
                       : "";
               for (final RegisteredServer sv : server.getAllServers()) {
+                if(sv.getServerInfo().getName().equals(authServer)){
+                  continue;
+                }
                 final String serverName = sv.getServerInfo().getName();
                 if (serverName.regionMatches(true, 0, argument, 0, argument.length())) {
                   builder.suggest(serverName);
@@ -73,6 +79,10 @@ public final class ServerCommand {
               final Player player = (Player) ctx.getSource();
               // Trying to connect to a server.
               final String serverName = StringArgumentType.getString(ctx, SERVER_ARG);
+              if(serverName.equals(authServer)){
+                player.sendMessage(Component.text("You can't re-connect to auth server!"));
+                return -1;
+              }
               final Optional<RegisteredServer> toConnect = server.getServer(serverName);
               if (toConnect.isEmpty()) {
                 player.sendMessage(CommandMessages.SERVER_DOES_NOT_EXIST
@@ -89,7 +99,7 @@ public final class ServerCommand {
   }
 
   private static void outputServerInformation(final Player executor,
-                                              final ProxyServer server) {
+                                              final ProxyServer server,final String authServer) {
     final String currentServer = executor.getCurrentServer()
         .map(ServerConnection::getServerInfo)
         .map(ServerInfo::getName)
@@ -113,6 +123,9 @@ public final class ServerCommand {
         .appendSpace();
     for (int i = 0; i < servers.size(); i++) {
       final RegisteredServer rs = servers.get(i);
+      if(rs.getServerInfo().getName().equals(authServer)){
+        continue;
+      }
       serverListBuilder.append(formatServerComponent(currentServer, rs));
       if (i != servers.size() - 1) {
         serverListBuilder.append(Component.text(", ", NamedTextColor.GRAY));

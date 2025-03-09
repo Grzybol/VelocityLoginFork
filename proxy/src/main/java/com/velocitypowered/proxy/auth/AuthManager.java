@@ -56,13 +56,18 @@ public class AuthManager {
         return (existing != null);
     }
 
-    public boolean register(UUID uuid, String password) {
+    public boolean register(UUID uuid, String password,String ip) {
         if (isRegistered(uuid)) {
             return false;
         }
         String hashedPassword = hashPassword(password);
         Document doc = new Document("uuid", uuid.toString())
-                .append("password", hashedPassword);
+                .append("password", hashedPassword)
+                .append("registeredIP",ip)
+                .append("registeredAt", Instant.now().getEpochSecond())
+                .append("lastLogin", 0)
+                .append("lastIP", "");
+
         usersCollection.insertOne(doc);
         return true;
     }
@@ -96,6 +101,8 @@ public class AuthManager {
         logger.info("lastLoginTime player: "+lastLoginTime.get(playerId)+", player: "+playerId+", loginTimestamp: "+loginTimestamp+", ip: "+ip);
         failedAttempts.remove(playerId);
         blockedUntil.remove(playerId);
+        usersCollection.updateOne(eq("uuid", playerId.toString()),
+                new Document("$set", new Document("lastLogin", loginTimestamp).append("lastIP", ip)));
         return true;
     }
 

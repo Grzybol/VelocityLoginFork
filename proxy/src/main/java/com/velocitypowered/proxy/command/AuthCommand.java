@@ -154,16 +154,24 @@ public class AuthCommand implements SimpleCommand {
         }
 
         // Próba rejestracji
-        if (authManager.register(player.getUniqueId(), pass1)) {
+        if (authManager.register(player.getUniqueId(), pass1,ip)) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
                             authConfig.getPrefix() + langConfig.getMessage("register-success")
                     )
             );
 
+            player.disconnect(
+                    MiniMessage.miniMessage().deserialize(
+                            authConfig.getPrefix() + langConfig.getMessage("register-success"+" - re-join the server")
+                    )
+            );
+            /*
             authManager.login(player.getUniqueId(), pass1,ip);
             player.setAuthenticated(true);
             sendToFirstAvailableServer(player);
+
+             */
         } else {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(

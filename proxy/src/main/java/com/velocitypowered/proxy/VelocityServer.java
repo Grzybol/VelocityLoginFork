@@ -302,7 +302,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
             .build(),
         callbackCommand
     );
-    final BrigadierCommand serverCommand = ServerCommand.create(this);
+    final BrigadierCommand serverCommand = ServerCommand.create(this,authConfig.getAuthServer());
     commandManager.register(
         commandManager.metaBuilder(serverCommand)
             .plugin(VelocityVirtualPlugin.INSTANCE)
