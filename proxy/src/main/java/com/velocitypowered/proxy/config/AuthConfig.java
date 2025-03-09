@@ -2,6 +2,7 @@ package com.velocitypowered.proxy.config;
 
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.moandjiezana.toml.Toml;
+import org.slf4j.ILoggerFactory;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -36,7 +37,7 @@ public class AuthConfig {
         this.authServers = authTable.getList("authServers");
         this.authServer = authTable.getString("authServer");
 
-        this.sessionLength = authTable.getLong("sessionLength", 600L); // default 600s
+        this.sessionLength = authTable.getLong("sessionLength", 600L);// default 600s
         this.maxPasswordAttempts = Math.toIntExact(authTable.getLong("maxPasswordAttempts", 3L));
         this.attemptFailedLoginDelay = authTable.getLong("attemptFailedLoginDelay", 30L);
 

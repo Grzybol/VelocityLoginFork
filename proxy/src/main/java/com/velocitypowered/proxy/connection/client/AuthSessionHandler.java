@@ -277,6 +277,7 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
         player.sendMessage(Component.text("✔ Auto-logged in! Sending you to " + normalServer.getServerInfo().getName() + "..."));
         logger.info("Auto-logged in player {} to {}", player.getUsername(), normalServer.getServerInfo().getName());
         player.createConnectionRequest(normalServer).fireAndForget();
+        player.setAuthenticated(true);
       } else {
         player.sendMessage(Component.text("⚠️ No available server found for auto-login fallback."));
         logger.warn("No available server found for auto-login fallback for player {}", player.getUsername());

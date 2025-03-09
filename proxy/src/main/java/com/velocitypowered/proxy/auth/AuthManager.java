@@ -173,16 +173,20 @@ public class AuthManager {
             logger.info("IP mismatch for player {}", playerId);
             return false;
         }
+        long sessionLength = authConfig.getSessionLength()*1000;//sekundy na milisekundy
         long lastTime = info.timestamp();
-        long now = Instant.now().getEpochSecond();
+        long now = System.currentTimeMillis();
         long diff = now - lastTime;
-        logger.info("Session length: {}, last login time: {}", diff, formatTime(lastTime));
-        if(diff > authConfig.getSessionLength()) {
+        logger.info("Session length: {}, last login time: {}, sessionLength: {}", diff, lastTime,sessionLength);
+        logger.info("player: "+playerId+", loginTimestamp: "+lastTime+", ip: "+ip);
+        if(diff > sessionLength) {
             logger.info("Session expired for player {}", playerId);
             lastLoginTime.remove(playerId);
             return false;
+        }else {
+            logger.info("Session still valid for player {}", playerId);
+            return true;
         }
-        return diff < authConfig.getSessionLength();
     }
 
     public String formatTime(long time) {

@@ -200,6 +200,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     this.options = options;
     this.dataDirectory = dataDirectory;
     this.authConfig = new AuthConfig(this, dataDirectory);
+    logger.info("authConfig.sessionLength: " + authConfig.getSessionLength());
     cm.logChannelInformation();
     // 1. Tworzymy obiekt MongoConfig i wymuszamy istnienie sekcji [mongo]
     this.mongoConfig = new MongoConfig(dataDirectory);
