@@ -40,6 +40,7 @@ import com.velocitypowered.api.util.Favicon;
 import com.velocitypowered.api.util.GameProfile;
 import com.velocitypowered.api.util.ProxyVersion;
 import com.velocitypowered.proxy.auth.AuthManager;
+import com.velocitypowered.proxy.auth.HybridAuthManager;
 import com.velocitypowered.proxy.command.AuthCommand;
 import com.velocitypowered.proxy.command.VelocityCommandManager;
 import com.velocitypowered.proxy.command.builtin.CallbackCommand;
@@ -49,6 +50,7 @@ import com.velocitypowered.proxy.command.builtin.ServerCommand;
 import com.velocitypowered.proxy.command.builtin.ShutdownCommand;
 import com.velocitypowered.proxy.command.builtin.VelocityCommand;
 import com.velocitypowered.proxy.config.AuthConfig;
+import com.velocitypowered.proxy.config.HybridAuthConfig;
 import com.velocitypowered.proxy.config.MongoConfig;
 import com.velocitypowered.proxy.config.VelocityConfiguration;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
@@ -60,6 +62,7 @@ import com.velocitypowered.proxy.database.MongoDBManager;
 import com.velocitypowered.proxy.event.VelocityEventManager;
 import com.velocitypowered.proxy.lang.LangConfig;
 import com.velocitypowered.proxy.listener.AuthEventListener;
+import com.velocitypowered.proxy.listener.PremiumConnectionListener;
 import com.velocitypowered.proxy.network.ConnectionManager;
 import com.velocitypowered.proxy.plugin.VelocityPluginManager;
 import com.velocitypowered.proxy.plugin.loader.VelocityPluginContainer;
@@ -70,6 +73,8 @@ import com.velocitypowered.proxy.protocol.util.FaviconSerializer;
 import com.velocitypowered.proxy.protocol.util.GameProfileSerializer;
 import com.velocitypowered.proxy.scheduler.VelocityScheduler;
 import com.velocitypowered.proxy.server.ServerMap;
+import com.velocitypowered.proxy.session.SessionValidationResult;
+import com.velocitypowered.proxy.session.SessionValidator;
 import com.velocitypowered.proxy.util.AddressUtil;
 import com.velocitypowered.proxy.util.ClosestLocaleMatcher;
 import com.velocitypowered.proxy.util.ResourceUtils;
@@ -185,6 +190,12 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   private MongoConfig mongoConfig;
   private MongoDBManager mongoDBManager;
   private LangConfig langConfig;
+  private  final SessionValidator sessionValidator;
+  private final HybridAuthConfig hybridAuthConfig;
+  private final HybridAuthManager hybridAuthManager;
+  //private final PremiumConnectionListener premiumConnectionListener;
+
+
 
 
   VelocityServer(final ProxyOptions options, Path dataDirectory) {
@@ -213,6 +224,10 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     mongoDBManager.connect();
     mongoDBManager.setupDatabase();
     this.authManager = new AuthManager(mongoDBManager, authConfig,this,langConfig);
+    this.hybridAuthConfig = new HybridAuthConfig();
+    this.sessionValidator = new SessionValidator(hybridAuthConfig);
+    this.hybridAuthManager = new HybridAuthManager(sessionValidator, hybridAuthConfig);
+    //his.premiumConnectionListener = new PremiumConnectionListener(sessionValidator);
 
 
   }
@@ -268,6 +283,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   @EnsuresNonNull({"serverKeyPair", "servers", "pluginManager", "eventManager", "scheduler",
       "console", "cm", "configuration"})
   void start() {
+
     logger.info("Booting up {} {}...", getVersion().getName(), getVersion().getVersion());
     console.setupStreams();
     pluginManager.registerPlugin(this.createVirtualPlugin());
@@ -338,6 +354,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     // Rejestracja eventów
     AuthEventListener listener = new AuthEventListener(authManager,authConfig,langConfig);
     this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, listener);
+    this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, new PremiumConnectionListener(sessionValidator));
 
     // Zadanie cykliczne (scheduler)
     reminderTask = this.getScheduler()
