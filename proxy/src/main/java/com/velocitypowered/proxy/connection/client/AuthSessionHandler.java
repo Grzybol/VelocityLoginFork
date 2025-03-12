@@ -288,15 +288,25 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
 
     // 2. Jeśli NIE auto-zalogowany -> standardowo idzie na serwer 'auth'
     String authServerName = server.getAuthConfig().getAuthServer();
-    Optional<RegisteredServer> optionalAuthSrv = server.getServer(authServerName);
+    Optional<RegisteredServer> AuthSrv = server.getServer(authServerName);
 
-    if (optionalAuthSrv.isEmpty()) {
-      player.disconnect0(Component.text("No auth server found!"), true);
+    if (AuthSrv.isEmpty()) {
+      logger.error("No auth server found!");
+      player.disconnect(Component.text("No auth server found!"));
       return CompletableFuture.completedFuture(null);
     }
 
-    player.createConnectionRequest(optionalAuthSrv.get()).fireAndForget();
-    return CompletableFuture.completedFuture(null);
+    RegisteredServer targetAuthSrv = AuthSrv.get();
+
+    return targetAuthSrv.ping().thenAcceptAsync(ping -> {
+      // Jeśli serwer odpowie na ping, można bezpiecznie przekierować gracza.
+      player.createConnectionRequest(targetAuthSrv).fireAndForget();
+    }).exceptionally(ex -> {
+      // Obsługa błędu – serwer nie jest dostępny
+      logger.error("Auth server is unreachable: {}", ex.getMessage());
+      player.disconnect(Component.text("Auth server is currently unreachable!"));
+      return null;
+    });
   }
 
 

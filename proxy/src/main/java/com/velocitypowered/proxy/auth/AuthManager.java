@@ -2,6 +2,7 @@ package com.velocitypowered.proxy.auth;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.proxy.config.AuthConfig;
@@ -96,6 +97,7 @@ public class AuthManager {
 
         // Sukces logowania
         authenticatedUsers.put(playerId, true);
+        ConnectedPlayer player = server.getPlayer(playerId).map(ConnectedPlayer.class::cast).orElse(null);
         long loginTimestamp =  System.currentTimeMillis();
         lastLoginTime.put(playerId, new LastLoginInfo(loginTimestamp, ip));
         logger.info("lastLoginTime player: "+lastLoginTime.get(playerId)+", player: "+playerId+", loginTimestamp: "+loginTimestamp+", ip: "+ip);
@@ -107,10 +109,14 @@ public class AuthManager {
     }
 
     public void logout(UUID playerId, String ip) {
-        authenticatedUsers.remove(playerId);
-        long loginTimestamp =  System.currentTimeMillis();
-        lastLoginTime.put(playerId, new LastLoginInfo(loginTimestamp, ip));
-        logger.info("lastLoginTime player: "+lastLoginTime.get(playerId)+", player: "+playerId+", loginTimestamp: "+loginTimestamp+", ip: "+ip);
+        if (hasValidSession(playerId,ip)) {
+            logger.info("Logging out player {}", playerId);
+            authenticatedUsers.remove(playerId);
+            long loginTimestamp =  System.currentTimeMillis();
+            lastLoginTime.put(playerId, new LastLoginInfo(loginTimestamp, ip));
+            logger.info("lastLoginTime player: "+lastLoginTime.get(playerId)+", player: "+playerId+", loginTimestamp: "+loginTimestamp+", ip: "+ip);
+        }
+
         //failedAttempts.remove(playerId);
         //blockedUntil.remove(playerId);
     }

@@ -26,14 +26,15 @@ import com.velocitypowered.api.command.BrigadierCommand;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.permission.Tristate;
 import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.proxy.auth.AuthManager;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerInfo;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.velocitypowered.proxy.config.AuthConfig;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.TranslatableComponent;
@@ -49,13 +50,19 @@ public final class ServerCommand {
 
 
   @SuppressWarnings("checkstyle:MissingJavadocMethod")
-  public static BrigadierCommand create(final ProxyServer server, String authServer) {
+  public static BrigadierCommand create(final ProxyServer server, String authServer, AuthManager authManager) {
+    //AtomicBoolean isAuthenticated = new AtomicBoolean(false);
+    final boolean[] isAuthenticated = new boolean[1];
     final LiteralCommandNode<CommandSource> node = BrigadierCommand
         .literalArgumentBuilder("server")
         .requires(src -> src instanceof Player
                 && src.getPermissionValue("velocity.command.server") != Tristate.FALSE)
         .executes(ctx -> {
           final Player player = (Player) ctx.getSource();
+          isAuthenticated[0] = authManager.isAuthenticated(player.getUniqueId());
+          if(!isAuthenticated[0]){
+            return -1;
+          }
           outputServerInformation(player, server,authServer);
           return Command.SINGLE_SUCCESS;
         })
@@ -65,6 +72,9 @@ public final class ServerCommand {
                       ? StringArgumentType.getString(ctx, SERVER_ARG)
                       : "";
               for (final RegisteredServer sv : server.getAllServers()) {
+                if(!isAuthenticated[0]){
+                  return builder.buildFuture();
+                }
                 if(sv.getServerInfo().getName().equals(authServer)){
                   continue;
                 }

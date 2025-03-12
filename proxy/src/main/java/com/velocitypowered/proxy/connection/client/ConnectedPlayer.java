@@ -593,6 +593,7 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
     return new ConnectionRequestBuilderImpl(server, this.connectedServer);
   }
 
+
   private ConnectionRequestBuilder createConnectionRequest(RegisteredServer server,
       @Nullable VelocityServerConnection previousConnection) {
     return new ConnectionRequestBuilderImpl(server, previousConnection);
@@ -793,6 +794,11 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
       if (event.getResult() instanceof final DisconnectPlayer res) {
         disconnect(res.getReasonComponent());
       } else if (event.getResult() instanceof final RedirectPlayer res) {
+        ConnectedPlayer player = this;
+        if(!player.isAuthenticated()){
+            player.disconnect(Component.text("You are not authenticated. Please re-connect"));
+            return;
+        }
         createConnectionRequest(res.getServer(), previousConnection).connect()
             .whenCompleteAsync((status, throwable) -> {
               if (throwable != null) {

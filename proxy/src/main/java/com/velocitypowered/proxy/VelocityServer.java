@@ -318,7 +318,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
             .build(),
         callbackCommand
     );
-    final BrigadierCommand serverCommand = ServerCommand.create(this,authConfig.getAuthServer());
+    final BrigadierCommand serverCommand = ServerCommand.create(this,authConfig.getAuthServer(),authManager);
     commandManager.register(
         commandManager.metaBuilder(serverCommand)
             .plugin(VelocityVirtualPlugin.INSTANCE)
@@ -375,6 +375,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
             })
             .repeat(15, TimeUnit.SECONDS)
             .schedule();
+
 
 
     this.doStartupConfigLoad();
@@ -591,6 +592,9 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
             throw new IllegalStateException("ConnectedPlayer not found for player " + player
                 + " in server " + rs.get().getServerInfo().getName());
           }
+          if(!((ConnectedPlayer) player).isAuthenticated()){
+            player.disconnect(Component.text("You are not authenticated. Please re-connect"));
+          }
           evacuate.add((ConnectedPlayer) player);
         }
         servers.unregister(rs.get().getServerInfo());
@@ -604,6 +608,9 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
       for (ConnectedPlayer player : evacuate) {
         Optional<RegisteredServer> next = player.getNextServerToTry();
         if (next.isPresent()) {
+          if(!((ConnectedPlayer) player).isAuthenticated()){
+            player.disconnect(Component.text("You are not authenticated. Please re-connect"));
+          }
           player.createConnectionRequest(next.get()).connectWithIndication()
               .whenComplete((success, ex) -> {
                 if (ex != null || success == null || !success) {
