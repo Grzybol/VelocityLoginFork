@@ -93,6 +93,7 @@ import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -962,5 +963,48 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   @Override
   public ResourcePackInfo.Builder createResourcePackBuilder(String url) {
     return new VelocityResourcePackInfo.BuilderImpl(url);
+  }
+  public AuthTimeoutManager getAuthTimeoutManager() {
+    return new AuthTimeoutManager(this);
+  }
+  public class AuthTimeoutManager {
+    private final Map<UUID, Long> loginTimestamps = new ConcurrentHashMap<>();
+    private final long TIMEOUT_MS = authConfig.getMaxLoginTimeout() * 1000L; // 60 seconds
+    private final VelocityServer server;
+    private ScheduledTask task;
+
+    public AuthTimeoutManager(VelocityServer server) {
+      this.server = server;
+      startScheduler();
+    }
+
+    private void startScheduler() {
+      this.task = server.getScheduler().buildTask(VelocityVirtualPlugin.INSTANCE, () -> {
+        long now = System.currentTimeMillis();
+        loginTimestamps.entrySet().removeIf(entry -> {
+          UUID playerId = entry.getKey();
+          long joinTime = entry.getValue();
+          if (now - joinTime > TIMEOUT_MS) {
+            server.getPlayer(playerId).ifPresent(player -> {
+              if (player.getCurrentServer().isPresent() &&
+                      player.getCurrentServer().get().getServerInfo().getName().equals(server.getAuthConfig().getAuthServer())) {
+                player.disconnect(Component.text("⏳ Login timeout expired!"));
+                logger.info("Player {} has been disconnected due to login timeout. Timeout: {}s", player.getUsername(), TIMEOUT_MS/1000);
+              }
+            });
+            return true; // Remove player from the map
+          }
+          return false;
+        });
+      }).repeat(1, TimeUnit.SECONDS).schedule();
+    }
+
+    public void addPlayerToAuth(UUID playerId) {
+      loginTimestamps.put(playerId, System.currentTimeMillis());
+    }
+
+    public void removePlayerFromAuth(UUID playerId) {
+      loginTimestamps.remove(playerId);
+    }
   }
 }

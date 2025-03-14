@@ -21,6 +21,7 @@ subprojects {
         implementation("org.mindrot:jbcrypt:0.4")
         // Driver MongoDB (wersja 4.x)
         implementation("org.mongodb:mongodb-driver-sync:4.10.2")
+        implementation("org.json:json:20210307")
 
     }
 

@@ -23,7 +23,7 @@ public class SessionValidator {
 
     }
 
-    public Optional<SessionValidationResult> validateSession(String username, String serverIdHash) {
+    public Optional<SessionValidationResult> validateSession(String username, String serverIdHash,String ip) {
         if (!config.isEnablePremiumVerification()) {
             return Optional.empty();
         }
@@ -31,7 +31,7 @@ public class SessionValidator {
         String cacheKey = username + ":" + serverIdHash;
         CacheEntry cached = cache.get(cacheKey);
         if (cached != null && (System.currentTimeMillis() - cached.timestamp) < config.getSessionCacheDurationMs()) {
-            logger.debug("Returning cached session for {}", cacheKey);
+            logger.info("Returning cached session for {}", cacheKey);
             return Optional.of(cached.result);
         } else {
             cache.remove(cacheKey);
@@ -40,12 +40,16 @@ public class SessionValidator {
         try {
             String sessionServerUrl = config.getSessionServerUrl()
                     + "?username=" + username
-                    + "&serverId=" + serverIdHash;
+                    + "&serverId=" + serverIdHash
+                    + "&ip=" + ip;
 
             HttpURLConnection conn = (HttpURLConnection) new URL(sessionServerUrl).openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
+            logger.info("Contacting Mojang session server: {}", sessionServerUrl);
+            logger.info("Mojang response: {}, response: {}", conn.getResponseCode(), conn.getResponseMessage());
+
 
             if (conn.getResponseCode() == 200) {
                 try (BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {

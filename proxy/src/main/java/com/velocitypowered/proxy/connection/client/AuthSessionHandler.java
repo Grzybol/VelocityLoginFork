@@ -286,6 +286,7 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
       return CompletableFuture.completedFuture(null);
     }
 
+
     // 2. Jeśli NIE auto-zalogowany -> standardowo idzie na serwer 'auth'
     String authServerName = server.getAuthConfig().getAuthServer();
     Optional<RegisteredServer> AuthSrv = server.getServer(authServerName);
@@ -295,6 +296,8 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
       player.disconnect(Component.text("No auth server found!"));
       return CompletableFuture.completedFuture(null);
     }
+    VelocityServer.AuthTimeoutManager authTimeoutManager = server.getAuthTimeoutManager();
+    authTimeoutManager.addPlayerToAuth(player.getUniqueId());
 
     RegisteredServer targetAuthSrv = AuthSrv.get();
 
@@ -305,6 +308,7 @@ public class AuthSessionHandler implements MinecraftSessionHandler {
       // Obsługa błędu – serwer nie jest dostępny
       logger.error("Auth server is unreachable: {}", ex.getMessage());
       player.disconnect(Component.text("Auth server is currently unreachable!"));
+      authTimeoutManager.removePlayerFromAuth(player.getUniqueId());
       return null;
     });
   }

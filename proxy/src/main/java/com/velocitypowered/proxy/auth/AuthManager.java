@@ -38,7 +38,7 @@ public class AuthManager {
     private final Map<UUID, Integer> failedAttempts = new ConcurrentHashMap<>();
     // Do kiedy gracz jest zablokowany (epoch second)
     private final Map<UUID, Long> blockedUntil = new ConcurrentHashMap<>();
-    record LastLoginInfo(long timestamp, String ip) {}
+    private record LastLoginInfo(long timestamp, String ip) {}
     private final LangConfig langConfig;
 
 

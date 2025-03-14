@@ -16,6 +16,7 @@ public class AuthConfig {
     private final String authServer;
 
     private final long sessionLength;           // w sekundach
+    private final int maxLoginTimeout;          // ile sekund czekać na zalogowanie
     private final int maxPasswordAttempts;      // ile razy można błędnie wpisać hasło
     private final long attemptFailedLoginDelay; // ile sekund blokady
     private static final String PREFIX = "<gold><bold>[BetterServer]</bold></gold> ";
@@ -40,6 +41,7 @@ public class AuthConfig {
         this.sessionLength = authTable.getLong("sessionLength", 600L);// default 600s
         this.maxPasswordAttempts = Math.toIntExact(authTable.getLong("maxPasswordAttempts", 3L));
         this.attemptFailedLoginDelay = authTable.getLong("attemptFailedLoginDelay", 30L);
+        this.maxLoginTimeout = Math.toIntExact(authTable.getLong("maxLoginTimeout", 60L));
 
         // 4. Walidacja
         if (this.authServers == null || this.authServers.isEmpty()) {
@@ -94,6 +96,10 @@ public class AuthConfig {
                     writer.newLine();
                     writer.write("attemptFailedLoginDelay = 30");
                     writer.newLine();
+                    writer.write("# Ile sekund czekać na zalogowanie?");
+                    writer.newLine();
+                    writer.write("maxLoginTimeout = 60");
+                    writer.newLine();
                     writer.write("prefix = \"<gold><bold>[BetterServer]</bold></gold> \"");
                 }
             } else {
@@ -116,6 +122,9 @@ public class AuthConfig {
                 lines = appendKeyIfMissing(lines, "prefix =",
                         "#prefix = \"<gold><bold>[BetterServer]</bold></gold> \"",
                         "prefix = \"<gold><bold>[BetterServer]</bold></gold> \"");
+                lines = appendKeyIfMissing(lines, "maxLoginTimeout =",
+                        "# Ile sekund czekać na zalogowanie?",
+                        "maxLoginTimeout = 60");
 
                 // Po ewentualnym dopisaniu kluczy - zapisujemy plik
                 Files.write(configPath, lines);
@@ -164,5 +173,8 @@ public class AuthConfig {
 
     public long getAttemptFailedLoginDelay() {
         return attemptFailedLoginDelay;
+    }
+    public int getMaxLoginTimeout() {
+        return maxLoginTimeout;
     }
 }

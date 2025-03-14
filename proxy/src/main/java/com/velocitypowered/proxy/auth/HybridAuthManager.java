@@ -37,8 +37,8 @@ public class HybridAuthManager {
         return Optional.ofNullable(serverIdMap.remove(username));
     }
 
-    public CompletableFuture<Optional<SessionValidationResult>> tryAuthenticatePremiumAsync(String username, String serverIdHash) {
-        return CompletableFuture.supplyAsync(() -> sessionValidator.validateSession(username, serverIdHash));
+    public CompletableFuture<Optional<SessionValidationResult>> tryAuthenticatePremiumAsync(String username, String serverIdHash, String ip) {
+        return CompletableFuture.supplyAsync(() -> sessionValidator.validateSession(username, serverIdHash, ip));
     }
 
     public UUID convertStringToUuid(String rawId) {
