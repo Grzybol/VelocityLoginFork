@@ -20,6 +20,8 @@ public class AuthConfig {
     private final int maxPasswordAttempts;      // ile razy można błędnie wpisać hasło
     private final long attemptFailedLoginDelay; // ile sekund blokady
     private static final String PREFIX = "<gold><bold>[BetterServer]</bold></gold> ";
+    private final String apiKey;
+    private final int antyVpnCheckTimeoutHours;
 
     public AuthConfig(ProxyServer server, Path dataDirectory) {
         Path configPath = dataDirectory.resolve("velocity.toml");
@@ -42,6 +44,8 @@ public class AuthConfig {
         this.maxPasswordAttempts = Math.toIntExact(authTable.getLong("maxPasswordAttempts", 3L));
         this.attemptFailedLoginDelay = authTable.getLong("attemptFailedLoginDelay", 30L);
         this.maxLoginTimeout = Math.toIntExact(authTable.getLong("maxLoginTimeout", 60L));
+        this.apiKey = authTable.getString("apiKey", "1234567890");
+        this.antyVpnCheckTimeoutHours = Math.toIntExact(authTable.getLong("antyVpnCheckTimeoutHours", 24L));
 
         // 4. Walidacja
         if (this.authServers == null || this.authServers.isEmpty()) {
@@ -101,6 +105,10 @@ public class AuthConfig {
                     writer.write("maxLoginTimeout = 60");
                     writer.newLine();
                     writer.write("prefix = \"<gold><bold>[BetterServer]</bold></gold> \"");
+                    writer.newLine();
+                    writer.write("apiKey = \"1234567890\"");
+                    writer.newLine();
+                    writer.write("antyVpnCheckTimeoutHours = 24");
                 }
             } else {
                 // Sekcja [auth] istnieje -> sprawdzamy poszczególne klucze
@@ -125,6 +133,12 @@ public class AuthConfig {
                 lines = appendKeyIfMissing(lines, "maxLoginTimeout =",
                         "# Ile sekund czekać na zalogowanie?",
                         "maxLoginTimeout = 60");
+                lines = appendKeyIfMissing(lines, "apiKey =",
+                        "# API Key",
+                        "apiKey = \"1234567890\"");
+                lines = appendKeyIfMissing(lines, "antyVpnCheckTimeoutHours =",
+                        "# Ile godzin trwa blokada antyVPN?",
+                        "antyVpnCheckTimeoutHours = 24");
 
                 // Po ewentualnym dopisaniu kluczy - zapisujemy plik
                 Files.write(configPath, lines);
@@ -176,5 +190,11 @@ public class AuthConfig {
     }
     public int getMaxLoginTimeout() {
         return maxLoginTimeout;
+    }
+    public String getApiKey() {
+        return apiKey;
+    }
+    public int getAntyVpnCheckTimeoutHours() {
+        return antyVpnCheckTimeoutHours;
     }
 }

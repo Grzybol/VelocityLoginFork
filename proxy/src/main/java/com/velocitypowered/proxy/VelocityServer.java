@@ -121,6 +121,7 @@ import net.kyori.adventure.translation.GlobalTranslator;
 import net.kyori.adventure.translation.TranslationRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
 import org.bstats.MetricsBase;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -195,7 +196,6 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
   private final HybridAuthConfig hybridAuthConfig;
   private final HybridAuthManager hybridAuthManager;
   //private final PremiumConnectionListener premiumConnectionListener;
-
 
 
 
@@ -355,7 +355,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     // Rejestracja eventów
     AuthEventListener listener = new AuthEventListener(authManager,authConfig,langConfig);
     this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, listener);
-    this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, new PremiumConnectionListener(sessionValidator));
+    this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, new PremiumConnectionListener(sessionValidator,authConfig,authManager));
 
     // Zadanie cykliczne (scheduler)
     reminderTask = this.getScheduler()

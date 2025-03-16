@@ -5,13 +5,18 @@ import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PreLoginEvent;
 import com.velocitypowered.api.event.player.GameProfileRequestEvent;
 import com.velocitypowered.api.util.GameProfile;
+import com.velocitypowered.proxy.auth.AuthManager;
+import com.velocitypowered.proxy.config.AuthConfig;
 import com.velocitypowered.proxy.session.SessionValidationResult;
 import com.velocitypowered.proxy.session.SessionValidator;
+import net.kyori.adventure.text.format.TextColor;
 import org.slf4j.Logger;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import java.awt.*;
 import java.math.BigInteger;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.X509EncodedKeySpec;
@@ -25,6 +30,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
+import java.util.stream.Collectors;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -35,16 +42,37 @@ public class PremiumConnectionListener {
     private final SessionValidator validator;
     private final Map<String, String> serverIdMap = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
+    private final Map<InetAddress, Boolean> isVPNmap = new ConcurrentHashMap<>();
     private PublicKey mojangPublicKey; // Klucz publiczny Mojang
+    private final AuthConfig authConfig;
+    private final AuthManager authManager;
 
     @Inject
-    public PremiumConnectionListener(SessionValidator validator) {
+    public PremiumConnectionListener(SessionValidator validator, AuthConfig authConfig, AuthManager authManager) {
         this.validator = validator;
         this.mojangPublicKey = fetchMojangPublicKey(); // Pobranie klucza Mojang przy starcie serwera
+        this.authConfig = authConfig;
+        this.authManager = authManager;
     }
 
     @Subscribe
     public void onPreLogin(PreLoginEvent event) {
+        logger.info("PreLoginEvent - premium connection listener");
+        net.kyori.adventure.text.Component reason = net.kyori.adventure.text.Component.text("VPN connections are not allowed.").color(TextColor.color(0xFF0000));
+        boolean isVPNfromMap = false;
+
+        if(!authManager.isAddressSaved(event.getConnection().getRemoteAddress().getAddress().getHostAddress()) || !authManager.isCheckValid(event.getConnection().getRemoteAddress().getAddress().getHostAddress()) ) {
+            logger.info("Saving IP to database: {}", event.getConnection().getRemoteAddress().getAddress());
+            authManager.saveToAntyVPN(event.getConnection().getRemoteAddress().getAddress());
+        }
+        isVPNfromMap = authManager.isVPNInDatabase(event.getConnection().getRemoteAddress().getAddress().getHostAddress());
+        logger.info("isVPNfromMap: {} for IP {}", isVPNfromMap, event.getConnection().getRemoteAddress().getAddress());
+        if(isVPNfromMap) {
+            logger.info("VPN detected for IP {}", event.getConnection().getRemoteAddress().getAddress());
+            event.setResult(PreLoginEvent.PreLoginComponentResult.denied(reason));
+            return;
+        }
+
         try {
             String username = event.getUsername();
 
@@ -65,6 +93,30 @@ public class PremiumConnectionListener {
             logger.error("Error generating serverId for {}", event.getUsername(), e);
         }
     }
+    /*
+    public boolean isVPN(InetAddress ip) {
+        String apiKey = authConfig.getApiKey();
+        String url = "https://proxycheck.io/v2/" + ip.getHostAddress() + "?key=" + apiKey + "&vpn=1&asn=1&risk=1";
+        logger.info("VPN check URL: {}", url);
+
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setRequestMethod("GET");
+
+            // Odczytaj całą odpowiedź
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
+                String response = reader.lines().collect(Collectors.joining("\n"));
+
+                logger.info("VPN check response: {}", response);
+                return response.contains("\"proxy\": \"yes\"");
+            }
+        } catch (Exception e) {
+            logger.error("Failed to check VPN status", e);
+            return false;  // Fail-safe: allow connection if API fails
+        }
+    }
+
+     */
 
     /**
      * Generuje Server ID zgodnie z dokumentacją Mojang

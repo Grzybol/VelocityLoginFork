@@ -68,5 +68,12 @@ public class MongoDBManager {
         } else {
             logger.info("'users' collection already exists.");
         }
+        // Ensure users collection exists
+        if (!database.listCollectionNames().into(new java.util.ArrayList<>()).contains("antyVPN")) {
+            database.createCollection("antyVPN");
+            logger.info("Created 'antyVPN' collection in MongoDB.");
+        } else {
+            logger.info("'antyVPN' collection already exists.");
+        }
     }
 }
