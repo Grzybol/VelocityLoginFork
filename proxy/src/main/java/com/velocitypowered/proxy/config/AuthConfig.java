@@ -22,6 +22,7 @@ public class AuthConfig {
     private static final String PREFIX = "<gold><bold>[BetterServer]</bold></gold> ";
     private final String apiKey;
     private final int antyVpnCheckTimeoutHours;
+    private final int maxAccountsPerIp;
 
     public AuthConfig(ProxyServer server, Path dataDirectory) {
         Path configPath = dataDirectory.resolve("velocity.toml");
@@ -46,6 +47,7 @@ public class AuthConfig {
         this.maxLoginTimeout = Math.toIntExact(authTable.getLong("maxLoginTimeout", 60L));
         this.apiKey = authTable.getString("apiKey", "1234567890");
         this.antyVpnCheckTimeoutHours = Math.toIntExact(authTable.getLong("antyVpnCheckTimeoutHours", 24L));
+        this.maxAccountsPerIp = Math.toIntExact(authTable.getLong("maxAccountsPerIp", 3L));
 
         // 4. Walidacja
         if (this.authServers == null || this.authServers.isEmpty()) {
@@ -109,6 +111,8 @@ public class AuthConfig {
                     writer.write("apiKey = \"1234567890\"");
                     writer.newLine();
                     writer.write("antyVpnCheckTimeoutHours = 24");
+                    writer.newLine();
+                    writer.write("maxAccountsPerIp = 3");
                 }
             } else {
                 // Sekcja [auth] istnieje -> sprawdzamy poszczególne klucze
@@ -139,6 +143,9 @@ public class AuthConfig {
                 lines = appendKeyIfMissing(lines, "antyVpnCheckTimeoutHours =",
                         "# Ile godzin trwa blokada antyVPN?",
                         "antyVpnCheckTimeoutHours = 24");
+                lines = appendKeyIfMissing(lines, "maxAccountsPerIp =",
+                        "# Ile kont może być zarejestrowanych na jedno IP?",
+                        "maxAccountsPerIp = 3");
 
                 // Po ewentualnym dopisaniu kluczy - zapisujemy plik
                 Files.write(configPath, lines);
@@ -196,5 +203,8 @@ public class AuthConfig {
     }
     public int getAntyVpnCheckTimeoutHours() {
         return antyVpnCheckTimeoutHours;
+    }
+    public int getMaxAccountsPerIp() {
+        return maxAccountsPerIp;
     }
 }

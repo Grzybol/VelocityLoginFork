@@ -7,6 +7,7 @@ import com.velocitypowered.api.event.player.GameProfileRequestEvent;
 import com.velocitypowered.api.util.GameProfile;
 import com.velocitypowered.proxy.auth.AuthManager;
 import com.velocitypowered.proxy.config.AuthConfig;
+import com.velocitypowered.proxy.lang.LangConfig;
 import com.velocitypowered.proxy.session.SessionValidationResult;
 import com.velocitypowered.proxy.session.SessionValidator;
 import net.kyori.adventure.text.format.TextColor;
@@ -46,19 +47,21 @@ public class PremiumConnectionListener {
     private PublicKey mojangPublicKey; // Klucz publiczny Mojang
     private final AuthConfig authConfig;
     private final AuthManager authManager;
+    private final LangConfig langConfig;
 
     @Inject
-    public PremiumConnectionListener(SessionValidator validator, AuthConfig authConfig, AuthManager authManager) {
+    public PremiumConnectionListener(SessionValidator validator, AuthConfig authConfig, AuthManager authManager, LangConfig langConfig) {
         this.validator = validator;
         this.mojangPublicKey = fetchMojangPublicKey(); // Pobranie klucza Mojang przy starcie serwera
         this.authConfig = authConfig;
         this.authManager = authManager;
+        this.langConfig = langConfig;
     }
 
     @Subscribe
     public void onPreLogin(PreLoginEvent event) {
         logger.info("PreLoginEvent - premium connection listener");
-        net.kyori.adventure.text.Component reason = net.kyori.adventure.text.Component.text("VPN connections are not allowed.").color(TextColor.color(0xFF0000));
+        net.kyori.adventure.text.Component reason = net.kyori.adventure.text.Component.text(langConfig.getMessage("vpn-not-allowed")).color(TextColor.color(0xFF0000));
         boolean isVPNfromMap = false;
 
         if(!authManager.isAddressSaved(event.getConnection().getRemoteAddress().getAddress().getHostAddress()) || !authManager.isCheckValid(event.getConnection().getRemoteAddress().getAddress().getHostAddress()) ) {

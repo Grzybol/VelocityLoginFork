@@ -163,7 +163,7 @@ public class AuthManager {
             return null;
         }
     }
-    public boolean register(UUID uuid, String password,String ip) {
+    public boolean register(UUID uuid, String password,String ip, String playerName) {
         if (isRegistered(uuid)) {
             return false;
         }
@@ -173,7 +173,8 @@ public class AuthManager {
                 .append("registeredIP",ip)
                 .append("registeredAt", Instant.now().getEpochSecond())
                 .append("lastLogin", 0)
-                .append("lastIP", "");
+                .append("lastIP", "")
+                .append("playerName",playerName);
 
         usersCollection.insertOne(doc);
         return true;
@@ -189,7 +190,7 @@ public class AuthManager {
      * Zwraca true/false w zależności od powodzenia (czy hasło poprawne w bazie).
      * Jeśli sukces, ustawia authenticatedUsers = true, lastLoginTime oraz resetuje blokady.
      */
-    public boolean login(UUID playerId, String password, String ip) {
+    public boolean login(UUID playerId, String password, String ip,String playerName) {
         logger.info("Logging in player {}", playerId);
         Document userDoc = usersCollection.find(eq("uuid", playerId.toString())).first();
         if (userDoc == null) {
@@ -209,10 +210,18 @@ public class AuthManager {
         logger.info("lastLoginTime player: "+lastLoginTime.get(playerId)+", player: "+playerId+", loginTimestamp: "+loginTimestamp+", ip: "+ip);
         failedAttempts.remove(playerId);
         blockedUntil.remove(playerId);
-        usersCollection.updateOne(eq("uuid", playerId.toString()),
-                new Document("$set", new Document("lastLogin", loginTimestamp).append("lastIP", ip)));
+        // Update last login time and IP
+        Document updateDoc = new Document("$set", new Document("lastLogin", loginTimestamp).append("lastIP", ip));
+
+        // Sprawdzenie i aktualizacja nazwy gracza, jeśli nie istnieje
+        if (userDoc.getString("playerName") == null || userDoc.getString("playerName").isEmpty()) {
+            updateDoc.get("$set", new Document()).append("playerName", playerName);
+        }
+
+        usersCollection.updateOne(eq("uuid", playerId.toString()), updateDoc);
         return true;
     }
+
 
     public void logout(UUID playerId, String ip) {
         if (hasValidSession(playerId,ip)) {
@@ -363,12 +372,23 @@ public class AuthManager {
 
     // ======================== Zmiana hasła (opcjonalnie) ========================
     public boolean updatePassword(UUID uuid, String newPassword) {
+        UUID offlinePlayerUuid = UUID.fromString("00000000-0000-0000-0000-000000000000");
         Document userDoc = usersCollection.find(eq("uuid", uuid.toString())).first();
         if (userDoc == null) {
             return false;
         }
         String hashed = hashPassword(newPassword);
         usersCollection.updateOne(eq("uuid", uuid.toString()),
+                new Document("$set", new Document("password", hashed)));
+        return true;
+    }
+    public boolean updatePassword(String playerName, String newPassword) {
+        Document userDoc = usersCollection.find(eq("playerName",playerName)).first();
+        if (userDoc == null) {
+            return false;
+        }
+        String hashed = hashPassword(newPassword);
+        usersCollection.updateOne(eq("playerName", playerName),
                 new Document("$set", new Document("password", hashed)));
         return true;
     }
@@ -385,6 +405,17 @@ public class AuthManager {
         usersCollection.updateOne(eq("uuid", uuid.toString()),
                 new Document("$set", new Document("password", hashed)));
         return true;
+    }
+    public int getNumberOfAccounts(String ip){
+        Document query = new Document("ip", ip);
+        Document result = usersCollection.find(query).first();
+        if (result == null) {
+            return 0;
+        }
+        int count = (int) usersCollection.countDocuments(query);
+        logger.info("getNumberOfAccounts result: {}", count);
+        return count;
+
     }
     public boolean isCheckValid(String ip) {
         Document query = new Document("ip", ip);

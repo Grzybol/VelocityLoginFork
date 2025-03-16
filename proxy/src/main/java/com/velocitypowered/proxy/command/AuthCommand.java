@@ -1,6 +1,7 @@
 package com.velocitypowered.proxy.command;
 
 import com.velocitypowered.api.command.SimpleCommand;
+import com.velocitypowered.api.proxy.ConsoleCommandSource;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.proxy.auth.AuthManager;
@@ -25,111 +26,201 @@ public class AuthCommand implements SimpleCommand {
         this.langConfig = langConfig;
     }
 
-    @Override
-    public void execute(Invocation invocation) {
+    public boolean isPlayer(Invocation invocation){
         if (!(invocation.source() instanceof ConnectedPlayer player)) {
             invocation.source().sendMessage(
                     MiniMessage.miniMessage().deserialize(
                             authConfig.getPrefix() + "<yellow>Only players can execute this command!</yellow>"
                     )
             );
-            return;
+            return false;
         }
-        String ip = player.getRemoteAddress().getAddress().getHostAddress();
-
-        // Czy gracz ma wciąż ważną sesję => auto-login i przeniesienie
-        if (authManager.hasValidSession(player.getUniqueId(),ip)) {
-            player.sendMessage(
-                    MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + langConfig.getMessage("session-still-valid")
-                    )
-            );
-            sendToFirstAvailableServer(player);
-            return;
-        }
-
-        // Sprawdź czy jest zablokowany
-        if (authManager.isBlocked(player.getUniqueId())) {
-            long now = System.currentTimeMillis() / 1000; // sekundy
-            // Do kiedy zablokowany:
-            // => authManager ma mapę blockedUntil, ale możemy też dać getter getBlockedUntilTime()
-            //    lub liczyć to localnie. Dla przykładu:
-            //    W AuthManager nie mamy gettera, więc  w sumie potrzebujesz np. public getBlockedUntilMap()
-            //    lub innej metody. Dla minimalnego przykładu robimy copy-paste logic:
-            //
-            // (Lepszy design -> dodać metodę getBlockedUntil(playerId) w AuthManager).
-
-            // Zakładamy, że AuthManager ma public Map<UUID, Long> getBlockedUntilMap() {return blockedUntil;}
-            // jeżeli wolisz, lub stwórz metodę getBlockedTimeLeft(...) w AuthManager.
-
-            long unblockedAt = authManager.getBlockedUntilTime(player.getUniqueId()); // Dodaj taką metodę w managerze
-            long secondsLeft = unblockedAt - (now / 1);
-            if (secondsLeft < 0) secondsLeft = 0;
-
-            player.sendMessage(
-                    MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + langConfig.getMessage("blocked-login-time-left")
-                                    + secondsLeft + "</bold>s.</red>"
-                    )
-            );
-            return;
-        }
-
+        return true;
+    }
+    @Override
+    public void execute(Invocation invocation) {
         // Parsowanie komend
         String[] args = invocation.arguments();
         String command = invocation.alias().toLowerCase();
-        if (args.length < 1) {
-            if (authManager.hasValidSession(player.getUniqueId(),ip)) {
+        if ((invocation.source() instanceof ConnectedPlayer player)) {
+            /*
+            invocation.source().sendMessage(
+                    MiniMessage.miniMessage().deserialize(
+                            authConfig.getPrefix() + "<yellow>Only players can execute this command!</yellow>"
+                    )
+            );
+            return;
+
+             */
+
+            String ip = player.getRemoteAddress().getAddress().getHostAddress();
+
+            // Czy gracz ma wciąż ważną sesję => auto-login i przeniesienie
+            if (authManager.hasValidSession(player.getUniqueId(), ip)) {
                 player.sendMessage(
                         MiniMessage.miniMessage().deserialize(
-                                authConfig.getPrefix() + langConfig.getMessage("already-logged-in")
+                                authConfig.getPrefix() + langConfig.getMessage("session-still-valid")
                         )
                 );
                 sendToFirstAvailableServer(player);
                 return;
             }
+
+            // Sprawdź czy jest zablokowany
+            if (authManager.isBlocked(player.getUniqueId())) {
+                long now = System.currentTimeMillis() / 1000; // sekundy
+                // Do kiedy zablokowany:
+                // => authManager ma mapę blockedUntil, ale możemy też dać getter getBlockedUntilTime()
+                //    lub liczyć to localnie. Dla przykładu:
+                //    W AuthManager nie mamy gettera, więc  w sumie potrzebujesz np. public getBlockedUntilMap()
+                //    lub innej metody. Dla minimalnego przykładu robimy copy-paste logic:
+                //
+                // (Lepszy design -> dodać metodę getBlockedUntil(playerId) w AuthManager).
+
+                // Zakładamy, że AuthManager ma public Map<UUID, Long> getBlockedUntilMap() {return blockedUntil;}
+                // jeżeli wolisz, lub stwórz metodę getBlockedTimeLeft(...) w AuthManager.
+
+                long unblockedAt = authManager.getBlockedUntilTime(player.getUniqueId()); // Dodaj taką metodę w managerze
+                long secondsLeft = unblockedAt - (now / 1);
+                if (secondsLeft < 0) secondsLeft = 0;
+
+                player.sendMessage(
+                        MiniMessage.miniMessage().deserialize(
+                                authConfig.getPrefix() + langConfig.getMessage("blocked-login-time-left")
+                                        + secondsLeft + "</bold>s.</red>"
+                        )
+                );
+                return;
+            }
+
+
+            if (args.length < 1) {
+                if (authManager.hasValidSession(player.getUniqueId(), ip)) {
+                    player.sendMessage(
+                            MiniMessage.miniMessage().deserialize(
+                                    authConfig.getPrefix() + langConfig.getMessage("already-logged-in")
+                            )
+                    );
+                    sendToFirstAvailableServer(player);
+                    return;
+                }
+                if (command.equals("register")) {
+                    player.sendMessage(MiniMessage.miniMessage().deserialize(
+                            authConfig.getPrefix() + langConfig.getMessage("register-usage")
+                    ));
+                    return;
+                }
+                if (command.equals("login")) {
+                    player.sendMessage(MiniMessage.miniMessage().deserialize(
+                            authConfig.getPrefix() + langConfig.getMessage("login-usage")
+                    ));
+                    return;
+                }
+                if (command.equals("changepassword")) {
+                    player.sendMessage(MiniMessage.miniMessage().deserialize(
+                            authConfig.getPrefix() + langConfig.getMessage("changepassword-usage")
+                    ));
+                    return;
+                }
+                player.sendMessage(MiniMessage.miniMessage().deserialize(
+                        authConfig.getPrefix() + langConfig.getMessage("not-logged-in")
+                ));
+                return;
+            }
+
+
             if (command.equals("register")) {
-                player.sendMessage(MiniMessage.miniMessage().deserialize(
-                        authConfig.getPrefix() + langConfig.getMessage("register-usage")
-                ));
-                return;
+                if (args.length != 2) {
+                    player.sendMessage(MiniMessage.miniMessage().deserialize(
+                            authConfig.getPrefix() + langConfig.getMessage("register-usage")
+                    ));
+                    return;
+                }
+                handleRegister(player, args[0], args[1]);
+            } else if (command.equals("login")) {
+                if (args.length != 1 && args.length != 2) {
+                    player.sendMessage(MiniMessage.miniMessage().deserialize(
+                            authConfig.getPrefix() + langConfig.getMessage("login-usage")
+                    ));
+                    return;
+                }
+                handleLogin(player, args[0], ip);
+            } else if(command.equals("changepassword")) {
+                if (args.length != 3) {
+                    player.sendMessage(MiniMessage.miniMessage().deserialize(
+                            authConfig.getPrefix() + langConfig.getMessage("changepassword-usage")
+                    ));
+                    return;
+                }
+                if(!args[1].equals(args[2])) {
+                    player.sendMessage(
+                            MiniMessage.miniMessage().deserialize(
+                                    authConfig.getPrefix() + langConfig.getMessage("passwords-dont-match")
+                            )
+                    );
+                    return;
+                }
+                if (!authManager.isValidPassword(args[1])) {
+                    player.sendMessage(
+                            MiniMessage.miniMessage().deserialize(
+                                    authConfig.getPrefix() + langConfig.getMessage("password-dont-match")
+                            )
+                    );
+                    return;
+                }
+                if (authManager.updatePassword(player.getUniqueId(), args[0],args[1])) {
+                    player.sendMessage(
+                            MiniMessage.miniMessage().deserialize(
+                                    authConfig.getPrefix() + langConfig.getMessage("password-changed")
+                            )
+                    );
+                } else {
+                    player.sendMessage(
+                            MiniMessage.miniMessage().deserialize(
+                                    authConfig.getPrefix() + langConfig.getMessage("invalid-password")
+                            )
+                    );
+                }
             }
-            if (command.equals("login")) {
-                player.sendMessage(MiniMessage.miniMessage().deserialize(
-                        authConfig.getPrefix() + langConfig.getMessage("login-usage")
-                ));
-                return;
+            else {
+                player.sendMessage(
+                        MiniMessage.miniMessage().deserialize(
+                                authConfig.getPrefix() + "<red>Unknown authentication command.</red>"
+                        )
+                );
             }
-            player.sendMessage(MiniMessage.miniMessage().deserialize(
-                    authConfig.getPrefix() + langConfig.getMessage("not-logged-in")
-            ));
-            return;
-        }
-
-
-
-        if (command.equals("register")) {
-            if (args.length != 2) {
-                player.sendMessage(MiniMessage.miniMessage().deserialize(
-                        authConfig.getPrefix() + langConfig.getMessage("register-usage")
-                ));
-                return;
+        } else if (invocation.source() instanceof ConsoleCommandSource) {
+            if(command.equals("changepassword")) {
+                if(args.length != 2) {
+                    invocation.source().sendMessage(
+                            MiniMessage.miniMessage().deserialize(
+                                    authConfig.getPrefix() + langConfig.getMessage("changepassword-console-usage")
+                            )
+                    );
+                    return;
+                }
+                if(!authManager.isValidPassword(args[1])) {
+                    invocation.source().sendMessage(
+                            MiniMessage.miniMessage().deserialize(
+                                    authConfig.getPrefix() + langConfig.getMessage("password-dont-meet-exp")
+                            )
+                    );
+                    return;
+                }
+                if(authManager.updatePassword(args[0],args[1])) {
+                    invocation.source().sendMessage(
+                            MiniMessage.miniMessage().deserialize(
+                                    authConfig.getPrefix() + langConfig.getMessage("password-changed")
+                            )
+                    );
+                } else {
+                    invocation.source().sendMessage(
+                            MiniMessage.miniMessage().deserialize(
+                                    authConfig.getPrefix() + langConfig.getMessage("invalid-password")
+                            )
+                    );
+                }
             }
-            handleRegister(player, args[0], args[1]);
-        } else if (command.equals("login")) {
-            if (args.length != 1 && args.length != 2) {
-                player.sendMessage(MiniMessage.miniMessage().deserialize(
-                        authConfig.getPrefix() + langConfig.getMessage("login-usage")
-                ));
-                return;
-            }
-            handleLogin(player, args[0],ip);
-        } else {
-            player.sendMessage(
-                    MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + "<red>Unknown authentication command.</red>"
-                    )
-            );
         }
     }
 
@@ -153,8 +244,16 @@ public class AuthCommand implements SimpleCommand {
             return;
         }
 
+        if(authManager.getNumberOfAccounts(ip) >= authConfig.getMaxAccountsPerIp()) {
+            player.sendMessage(
+                    MiniMessage.miniMessage().deserialize(
+                            authConfig.getPrefix() + langConfig.getMessage("max-accounts-reached")
+                    )
+            );
+            return;
+        }
         // Próba rejestracji
-        if (authManager.register(player.getUniqueId(), pass1,ip)) {
+        if (authManager.register(player.getUniqueId(), pass1,ip,player.getUsername())) {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
                             authConfig.getPrefix() + langConfig.getMessage("register-success")
@@ -194,7 +293,7 @@ public class AuthCommand implements SimpleCommand {
             return;
         }
 
-        if (authManager.login(player.getUniqueId(), password,ip)) {
+        if (authManager.login(player.getUniqueId(), password,ip,player.getUsername())) {
             player.setAuthenticated(true);
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(

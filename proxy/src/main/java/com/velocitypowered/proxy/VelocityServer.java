@@ -347,6 +347,12 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
                     .build(),
             authCommand
     );
+    commandManager.register(
+            commandManager.metaBuilder("changepassword")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            authCommand
+    );
 
 
 
@@ -355,7 +361,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     // Rejestracja eventów
     AuthEventListener listener = new AuthEventListener(authManager,authConfig,langConfig);
     this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, listener);
-    this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, new PremiumConnectionListener(sessionValidator,authConfig,authManager));
+    this.getEventManager().register(VelocityVirtualPlugin.INSTANCE, new PremiumConnectionListener(sessionValidator,authConfig,authManager,langConfig));
 
     // Zadanie cykliczne (scheduler)
     reminderTask = this.getScheduler()
@@ -988,7 +994,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
             server.getPlayer(playerId).ifPresent(player -> {
               if (player.getCurrentServer().isPresent() &&
                       player.getCurrentServer().get().getServerInfo().getName().equals(server.getAuthConfig().getAuthServer())) {
-                player.disconnect(Component.text("⏳ Login timeout expired!"));
+                player.disconnect(Component.text(langConfig.getMessage("login-timeout")));
                 logger.info("Player {} has been disconnected due to login timeout. Timeout: {}s", player.getUsername(), TIMEOUT_MS/1000);
               }
             });
