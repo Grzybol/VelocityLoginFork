@@ -78,7 +78,7 @@ public class PremiumConnectionListener {
         }
         // Sprawdzenie kraju - DO ODBLOKOWANIA!!!!
 
-        if(authConfig.getAllowedCountryList().contains("*")){ // Jeśli lista krajów jest pusta, to nie sprawdzamy kraju
+        if(authConfig.getAllowedCountryList().contains("*")||authConfig.getAllowedCountryList().isEmpty()){ // Jeśli lista krajów jest pusta, to nie sprawdzamy kraju
             logger.info("Country check is disabled");
         } else if(!authManager.isFromCountry(event.getConnection().getRemoteAddress().getAddress().getHostAddress(), authConfig.getAllowedCountryList())) {
             logger.info("Country detected for IP {}", event.getConnection().getRemoteAddress().getAddress());
