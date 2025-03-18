@@ -22,6 +22,7 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -86,6 +87,17 @@ public class AuthManager {
 
         // Sprawdzamy, czy pole "proxy" ma wartość "yes"
         return "yes".equalsIgnoreCase(result.getString("proxy"));
+    }
+    public boolean isFromCountry(String ip, List<String> country) {
+        Document query = new Document("ip", ip);
+        Document result = antyVPNCollection.find(query).first();
+
+        // Jeśli IP nie istnieje w bazie, zwracamy false
+        if (result == null) {
+            return false;
+        }
+        logger.info("VPN check result: {}", result.getString("country"));
+        return country.contains(result.getString("country"));
     }
     public void saveToAntyVPN(InetAddress ip) {
         Document doc = proxyCheck(ip);

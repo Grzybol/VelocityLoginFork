@@ -61,7 +61,8 @@ public class PremiumConnectionListener {
     @Subscribe
     public void onPreLogin(PreLoginEvent event) {
         logger.info("PreLoginEvent - premium connection listener");
-        net.kyori.adventure.text.Component reason = net.kyori.adventure.text.Component.text(langConfig.getMessage("vpn-not-allowed")).color(TextColor.color(0xFF0000));
+        net.kyori.adventure.text.Component reasonVPN = net.kyori.adventure.text.Component.text(langConfig.getMessage("vpn-not-allowed")).color(TextColor.color(0xFF0000));
+        net.kyori.adventure.text.Component reasonCountry = net.kyori.adventure.text.Component.text(langConfig.getMessage("country-not-allowed")+"Allowed countries: "+authConfig.getAllowedCountryList()).color(TextColor.color(0xFF0000));
         boolean isVPNfromMap = false;
 
         if(!authManager.isAddressSaved(event.getConnection().getRemoteAddress().getAddress().getHostAddress()) || !authManager.isCheckValid(event.getConnection().getRemoteAddress().getAddress().getHostAddress()) ) {
@@ -72,9 +73,20 @@ public class PremiumConnectionListener {
         logger.info("isVPNfromMap: {} for IP {}", isVPNfromMap, event.getConnection().getRemoteAddress().getAddress());
         if(isVPNfromMap) {
             logger.info("VPN detected for IP {}", event.getConnection().getRemoteAddress().getAddress());
-            event.setResult(PreLoginEvent.PreLoginComponentResult.denied(reason));
+            event.setResult(PreLoginEvent.PreLoginComponentResult.denied(reasonVPN));
             return;
         }
+        // Sprawdzenie kraju - DO ODBLOKOWANIA!!!!
+
+        if(authConfig.getAllowedCountryList().contains("*")){ // Jeśli lista krajów jest pusta, to nie sprawdzamy kraju
+            logger.info("Country check is disabled");
+        } else if(!authManager.isFromCountry(event.getConnection().getRemoteAddress().getAddress().getHostAddress(), authConfig.getAllowedCountryList())) {
+            logger.info("Country detected for IP {}", event.getConnection().getRemoteAddress().getAddress());
+            event.setResult(PreLoginEvent.PreLoginComponentResult.denied(reasonCountry));
+            return;
+        }
+
+
 
         try {
             String username = event.getUsername();

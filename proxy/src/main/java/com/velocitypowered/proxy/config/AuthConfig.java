@@ -19,10 +19,11 @@ public class AuthConfig {
     private final int maxLoginTimeout;          // ile sekund czekać na zalogowanie
     private final int maxPasswordAttempts;      // ile razy można błędnie wpisać hasło
     private final long attemptFailedLoginDelay; // ile sekund blokady
-    private static final String PREFIX = "<gold><bold>[BetterServer]</bold></gold> ";
+    private final String PREFIX;
     private final String apiKey;
     private final int antyVpnCheckTimeoutHours;
     private final int maxAccountsPerIp;
+    private final List<String> allowedCountryList;
 
     public AuthConfig(ProxyServer server, Path dataDirectory) {
         Path configPath = dataDirectory.resolve("velocity.toml");
@@ -48,6 +49,13 @@ public class AuthConfig {
         this.apiKey = authTable.getString("apiKey", "1234567890");
         this.antyVpnCheckTimeoutHours = Math.toIntExact(authTable.getLong("antyVpnCheckTimeoutHours", 24L));
         this.maxAccountsPerIp = Math.toIntExact(authTable.getLong("maxAccountsPerIp", 3L));
+        this.PREFIX = authTable.getString("prefix", "<gold><bold>[BetterServer]</bold></gold> ");
+        // Wczytanie listy krajów, domyślnie jeśli brak, to np. ["PL", "US"]
+        List<String> defaultCountries = List.of("Poland", "Germany", "United States");
+        this.allowedCountryList = authTable.contains("allowedCountry")
+                ? authTable.getList("allowedCountry")
+                : defaultCountries;
+
 
         // 4. Walidacja
         if (this.authServers == null || this.authServers.isEmpty()) {
@@ -113,6 +121,8 @@ public class AuthConfig {
                     writer.write("antyVpnCheckTimeoutHours = 24");
                     writer.newLine();
                     writer.write("maxAccountsPerIp = 3");
+                    writer.newLine();
+                    writer.write("allowedCountry = \"Poland\"");
                 }
             } else {
                 // Sekcja [auth] istnieje -> sprawdzamy poszczególne klucze
@@ -146,6 +156,9 @@ public class AuthConfig {
                 lines = appendKeyIfMissing(lines, "maxAccountsPerIp =",
                         "# Ile kont może być zarejestrowanych na jedno IP?",
                         "maxAccountsPerIp = 3");
+                lines = appendKeyIfMissing(lines, "allowedCountry =",
+                        "# Kraj, z którego można się zalogować",
+                        "allowedCountry = \"Poland\"");
 
                 // Po ewentualnym dopisaniu kluczy - zapisujemy plik
                 Files.write(configPath, lines);
@@ -206,5 +219,8 @@ public class AuthConfig {
     }
     public int getMaxAccountsPerIp() {
         return maxAccountsPerIp;
+    }
+    public List<String> getAllowedCountryList() {
+        return allowedCountryList;
     }
 }
