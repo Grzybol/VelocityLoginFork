@@ -337,6 +337,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     commandManager.register(
             commandManager.metaBuilder("register")
                     .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .aliases("r","rejestracja")
                     .build(),
             authCommand
     );
@@ -344,6 +345,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     commandManager.register(
             commandManager.metaBuilder("login")
                     .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .aliases("l","zaloguj")
                     .build(),
             authCommand
     );

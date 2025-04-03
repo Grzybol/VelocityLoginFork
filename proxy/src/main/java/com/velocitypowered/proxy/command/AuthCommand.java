@@ -104,13 +104,13 @@ public class AuthCommand implements SimpleCommand {
                     sendToFirstAvailableServer(player);
                     return;
                 }
-                if (command.equals("register")) {
+                if (command.equals("register")||command.equals("r")||command.equals("rejestracja")) {
                     player.sendMessage(MiniMessage.miniMessage().deserialize(
                             authConfig.getPrefix() + langConfig.getMessage("register-usage")
                     ));
                     return;
                 }
-                if (command.equals("login")) {
+                if (command.equals("login") ||command.equals("l")||command.equals("zaloguj")) {
                     player.sendMessage(MiniMessage.miniMessage().deserialize(
                             authConfig.getPrefix() + langConfig.getMessage("login-usage")
                     ));
