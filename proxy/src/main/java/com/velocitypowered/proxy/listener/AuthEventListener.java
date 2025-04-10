@@ -79,7 +79,7 @@ public class AuthEventListener {
 
         // Tylko /login i /register są dozwolone, reszta blokowana
         if (!player.isAuthenticated()
-                && !(command.startsWith("login") || command.startsWith("register"))) {
+                && !(command.startsWith("login") || command.startsWith("register")||command.equals("l")||command.equals("zaloguj")||command.equals("r")||command.equals("rejestracja"))) {
             event.setResult(CommandExecuteEvent.CommandResult.denied());
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(

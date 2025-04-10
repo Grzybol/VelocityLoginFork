@@ -337,6 +337,7 @@ public class AuthManager {
      * Próba automatycznego logowania, jeśli sesja jest jeszcze aktywna.
      */
     public boolean tryAutoLoginIfSessionActive(UUID playerId,String ip) {
+        logger.info("Trying auto-login for player {}", playerId);
 
         if (!hasValidSession(playerId,ip)) {
             logger.info("Session is not valid for player {}", playerId);
@@ -344,6 +345,8 @@ public class AuthManager {
         }
         // Sesja jest ważna => auto-logowanie
         authenticatedUsers.put(playerId, true);
+        long loginTimestamp =  System.currentTimeMillis();
+        lastLoginTime.put(playerId, new LastLoginInfo(loginTimestamp, ip));
         logger.info("Auto-login for player {}", playerId);
         return true;
     }

@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.velocitypowered.api.command.BrigadierCommand;
+import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyReloadEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
@@ -41,8 +42,7 @@ import com.velocitypowered.api.util.GameProfile;
 import com.velocitypowered.api.util.ProxyVersion;
 import com.velocitypowered.proxy.auth.AuthManager;
 import com.velocitypowered.proxy.auth.HybridAuthManager;
-import com.velocitypowered.proxy.command.AuthCommand;
-import com.velocitypowered.proxy.command.VelocityCommandManager;
+import com.velocitypowered.proxy.command.*;
 import com.velocitypowered.proxy.command.builtin.CallbackCommand;
 import com.velocitypowered.proxy.command.builtin.GlistCommand;
 import com.velocitypowered.proxy.command.builtin.SendCommand;
@@ -63,6 +63,7 @@ import com.velocitypowered.proxy.event.VelocityEventManager;
 import com.velocitypowered.proxy.lang.LangConfig;
 import com.velocitypowered.proxy.listener.AuthEventListener;
 import com.velocitypowered.proxy.listener.PremiumConnectionListener;
+import com.velocitypowered.proxy.logging.elastic.*;
 import com.velocitypowered.proxy.network.ConnectionManager;
 import com.velocitypowered.proxy.plugin.VelocityPluginManager;
 import com.velocitypowered.proxy.plugin.loader.VelocityPluginContainer;
@@ -86,6 +87,8 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
+
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -122,6 +125,9 @@ import net.kyori.adventure.translation.TranslationRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.bstats.MetricsBase;
 import org.checkerframework.checker.nullness.qual.EnsuresNonNull;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -334,6 +340,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
             .build(),
         shutdownCommand
     );
+    /*
     commandManager.register(
             commandManager.metaBuilder("register")
                     .plugin(VelocityVirtualPlugin.INSTANCE)
@@ -355,6 +362,68 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
                     .build(),
             authCommand
     );
+
+     */
+    // Komendy rejestracja / logowanie / zmiana hasła
+    SimpleCommand registerCommand = new RegisterCommand(authManager, this, authConfig, langConfig);
+
+    commandManager.register(
+            commandManager.metaBuilder("register")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            registerCommand
+    );
+    commandManager.register(
+            commandManager.metaBuilder("r")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            registerCommand
+    );
+    commandManager.register(
+            commandManager.metaBuilder("rejestracja")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            registerCommand
+    );
+
+
+    SimpleCommand loginCommand = new LoginCommand(authManager, this, authConfig, langConfig);
+
+    commandManager.register(
+            commandManager.metaBuilder("login")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            loginCommand
+    );
+    commandManager.register(
+            commandManager.metaBuilder("l")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            loginCommand
+    );
+    commandManager.register(
+            commandManager.metaBuilder("zaloguj")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            loginCommand
+    );
+
+
+    SimpleCommand changePassCommand = new ChangePasswordCommand(authManager, authConfig, langConfig);
+
+    commandManager.register(
+            commandManager.metaBuilder("changepassword")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            changePassCommand
+    );
+    commandManager.register(
+            commandManager.metaBuilder("changepass")
+                    .plugin(VelocityVirtualPlugin.INSTANCE)
+                    .build(),
+            changePassCommand
+    );
+
 
 
 
@@ -434,7 +503,34 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     } else {
       logger.warn("debug environment, metrics is disabled!");
     }
+    initializeElasticAppender();
+
   }
+  private void initializeElasticAppender() {
+    File baseDir = new File("."); // lub getBaseDirectory() jeśli masz
+    ElasticConfig elasticConfig = ElasticConfigLoader.loadFromFile(baseDir);
+
+    // 1. Inicjalizujemy sender i bufor
+    ElasticSender elasticSender = new ElasticSender(elasticConfig);
+    LogBuffer logBuffer = new LogBuffer(elasticSender, elasticConfig);
+
+    // 2. Przypisujemy bufor do naszego appendera
+    ElasticLog4jAppender elasticAppender = ElasticLog4jAppender.createAppender(
+            "ElasticAppender",
+            null,
+            null
+    );
+    ElasticLog4jAppender.setLogBuffer(logBuffer);
+    elasticAppender.start();
+
+    // 3. Rejestrujemy w loggerze Log4j (ROOT logger!)
+    LoggerContext context = (LoggerContext) LogManager.getContext(false);
+    org.apache.logging.log4j.core.config.Configuration log4jConfig = context.getConfiguration(); // 👈 zmiana nazwy
+    LoggerConfig rootLogger = log4jConfig.getLoggerConfig(LogManager.ROOT_LOGGER_NAME);
+    rootLogger.addAppender(elasticAppender, null, null);
+    context.updateLoggers(); // bardzo ważne!
+  }
+
   public MongoDBManager getMongoDBManager() {
     return mongoDBManager;
   }
@@ -996,7 +1092,11 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
             server.getPlayer(playerId).ifPresent(player -> {
               if (player.getCurrentServer().isPresent() &&
                       player.getCurrentServer().get().getServerInfo().getName().equals(server.getAuthConfig().getAuthServer())) {
-                player.disconnect(Component.text(langConfig.getMessage("login-timeout")));
+                // Disconnect the player with a message
+                Component kickMessage = MiniMessage.miniMessage().deserialize(
+                        authConfig.getPrefix() + "<newline>" + langConfig.getMessage("login-timeout") + "<newline><yellow>re-join to login</yellow>"
+                );
+                player.disconnect(kickMessage);
                 logger.info("Player {} has been disconnected due to login timeout. Timeout: {}s", player.getUsername(), TIMEOUT_MS/1000);
               }
             });

@@ -8,6 +8,7 @@ import com.velocitypowered.proxy.auth.AuthManager;
 import com.velocitypowered.proxy.config.AuthConfig;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
 import com.velocitypowered.proxy.lang.LangConfig;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 
 import java.util.Optional;
@@ -129,7 +130,7 @@ public class AuthCommand implements SimpleCommand {
             }
 
 
-            if (command.equals("register")) {
+            if (command.equals("register")||command.equals("r")||command.equals("rejestracja")) {
                 if (args.length != 2) {
                     player.sendMessage(MiniMessage.miniMessage().deserialize(
                             authConfig.getPrefix() + langConfig.getMessage("register-usage")
@@ -137,7 +138,7 @@ public class AuthCommand implements SimpleCommand {
                     return;
                 }
                 handleRegister(player, args[0], args[1]);
-            } else if (command.equals("login")) {
+            } else if (command.equals("login")||command.equals("l")||command.equals("zaloguj")) {
                 if (args.length != 1 && args.length != 2) {
                     player.sendMessage(MiniMessage.miniMessage().deserialize(
                             authConfig.getPrefix() + langConfig.getMessage("login-usage")
@@ -259,18 +260,14 @@ public class AuthCommand implements SimpleCommand {
                             authConfig.getPrefix() + langConfig.getMessage("register-success")
                     )
             );
+            Component kickMessage = MiniMessage.miniMessage().deserialize(
+                    authConfig.getPrefix() + "<newline>" +langConfig.getMessage("register-success") + "<newline><yellow>re-join to login</yellow>"
 
-            player.disconnect(
-                    MiniMessage.miniMessage().deserialize(
-                            authConfig.getPrefix() + langConfig.getMessage("register-success"+" - re-join the server")
-                    )
             );
-            /*
-            authManager.login(player.getUniqueId(), pass1,ip);
-            player.setAuthenticated(true);
-            sendToFirstAvailableServer(player);
+            System.out.println("KICK MESSAGE: " + kickMessage);
+            player.disconnect(kickMessage);
 
-             */
+
         } else {
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(

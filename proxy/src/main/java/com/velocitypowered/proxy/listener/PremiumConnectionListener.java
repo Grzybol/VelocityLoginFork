@@ -11,6 +11,7 @@ import com.velocitypowered.proxy.lang.LangConfig;
 import com.velocitypowered.proxy.session.SessionValidationResult;
 import com.velocitypowered.proxy.session.SessionValidator;
 import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
 
 import javax.crypto.KeyGenerator;
@@ -61,8 +62,14 @@ public class PremiumConnectionListener {
     @Subscribe
     public void onPreLogin(PreLoginEvent event) {
         logger.info("PreLoginEvent - premium connection listener");
-        net.kyori.adventure.text.Component reasonVPN = net.kyori.adventure.text.Component.text(langConfig.getMessage("vpn-not-allowed")).color(TextColor.color(0xFF0000));
-        net.kyori.adventure.text.Component reasonCountry = net.kyori.adventure.text.Component.text(langConfig.getMessage("country-not-allowed")+"Allowed countries: "+authConfig.getAllowedCountryList()).color(TextColor.color(0xFF0000));
+        //net.kyori.adventure.text.Component reasonVPN = net.kyori.adventure.text.Component.text(langConfig.getMessage("vpn-not-allowed")).color(TextColor.color(0xFF0000));
+        //net.kyori.adventure.text.Component reasonCountry = net.kyori.adventure.text.Component.text(langConfig.getMessage("country-not-allowed")+"Allowed countries: "+authConfig.getAllowedCountryList()).color(TextColor.color(0xFF0000));
+        Component reasonVPN = (Component) MiniMessage.miniMessage().deserialize(
+                authConfig.getPrefix() + "<newline>" + langConfig.getMessage("vpn-not-allowed") + "<newline><yellow>re-join to login</yellow>"
+        );
+        Component reasonCountry = (Component) MiniMessage.miniMessage().deserialize(
+                authConfig.getPrefix() + "<newline>" + langConfig.getMessage("country-not-allowed") + "<newline><yellow>re-join to login</yellow>"
+        );
         boolean isVPNfromMap = false;
 
         if(!authManager.isAddressSaved(event.getConnection().getRemoteAddress().getAddress().getHostAddress()) || !authManager.isCheckValid(event.getConnection().getRemoteAddress().getAddress().getHostAddress()) ) {
@@ -73,7 +80,7 @@ public class PremiumConnectionListener {
         logger.info("isVPNfromMap: {} for IP {}", isVPNfromMap, event.getConnection().getRemoteAddress().getAddress());
         if(isVPNfromMap) {
             logger.info("VPN detected for IP {}", event.getConnection().getRemoteAddress().getAddress());
-            event.setResult(PreLoginEvent.PreLoginComponentResult.denied(reasonVPN));
+            event.setResult(PreLoginEvent.PreLoginComponentResult.denied((net.kyori.adventure.text.Component) reasonVPN));
             return;
         }
         // Sprawdzenie kraju - DO ODBLOKOWANIA!!!!
@@ -82,7 +89,7 @@ public class PremiumConnectionListener {
             logger.info("Country check is disabled");
         } else if(!authManager.isFromCountry(event.getConnection().getRemoteAddress().getAddress().getHostAddress(), authConfig.getAllowedCountryList())) {
             logger.info("Country detected for IP {}", event.getConnection().getRemoteAddress().getAddress());
-            event.setResult(PreLoginEvent.PreLoginComponentResult.denied(reasonCountry));
+            event.setResult(PreLoginEvent.PreLoginComponentResult.denied((net.kyori.adventure.text.Component) reasonCountry));
             return;
         }
 
