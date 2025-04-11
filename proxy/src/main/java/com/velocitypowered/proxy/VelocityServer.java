@@ -513,6 +513,7 @@ public class VelocityServer implements ProxyServer, ForwardingAudience {
     // 1. Inicjalizujemy sender i bufor
     ElasticSender elasticSender = new ElasticSender(elasticConfig);
     LogBuffer logBuffer = new LogBuffer(elasticSender, elasticConfig);
+    PlayerLogContext.setLogBuffer(logBuffer); // Ustawiamy bufor w PlayerLogContext
 
     // 2. Przypisujemy bufor do naszego appendera
     ElasticLog4jAppender elasticAppender = ElasticLog4jAppender.createAppender(

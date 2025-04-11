@@ -6,6 +6,7 @@ import com.velocitypowered.proxy.auth.AuthManager;
 import com.velocitypowered.proxy.config.AuthConfig;
 import com.velocitypowered.proxy.lang.LangConfig;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
+import com.velocitypowered.proxy.logging.elastic.PlayerLogContext;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,7 @@ public class ChangePasswordCommand implements SimpleCommand {
                 player.sendMessage(MiniMessage.miniMessage().deserialize(
                         authConfig.getPrefix() + langConfig.getMessage("passwords-dont-match")
                 ));
+                PlayerLogContext.logInfo(player, "Player "+player.getUsername()+" tried to change password but the new passwords didn't match");
                 return;
             }
 
@@ -47,6 +49,7 @@ public class ChangePasswordCommand implements SimpleCommand {
                 player.sendMessage(MiniMessage.miniMessage().deserialize(
                         authConfig.getPrefix() + langConfig.getMessage("password-dont-meet-exp")
                 ));
+                PlayerLogContext.logInfo(player, "Player "+player.getUsername()+" tried to change password but the new password didn't meet the requirements");
                 return;
             }
 
@@ -54,11 +57,12 @@ public class ChangePasswordCommand implements SimpleCommand {
                 player.sendMessage(MiniMessage.miniMessage().deserialize(
                         authConfig.getPrefix() + langConfig.getMessage("password-changed")
                 ));
-                logger.info("Gracz {} zmienił hasło", player.getUsername());
+                PlayerLogContext.logInfo(player, "Player "+player.getUsername()+" changed their password");
             } else {
                 player.sendMessage(MiniMessage.miniMessage().deserialize(
                         authConfig.getPrefix() + langConfig.getMessage("invalid-password")
                 ));
+                PlayerLogContext.logInfo(player, "Player "+player.getUsername()+" tried to change password but the old password was invalid");
             }
 
         } else if (invocation.source() instanceof ConsoleCommandSource) {

@@ -6,6 +6,7 @@ import com.velocitypowered.proxy.config.AuthConfig;
 import com.velocitypowered.proxy.lang.LangConfig;
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.proxy.logging.elastic.PlayerLogContext;
 import com.velocitypowered.proxy.util.AuthUtils;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.slf4j.Logger;
@@ -33,6 +34,7 @@ public class LoginCommand implements SimpleCommand {
                             authConfig.getPrefix() + "<yellow>Only players can use this command!</yellow>"
                     )
             );
+            logger.warn("Login command was executed by a non-player source: {}", invocation.source());
             return;
         }
 
@@ -53,13 +55,14 @@ public class LoginCommand implements SimpleCommand {
                     )
             );
             AuthUtils.sendToFirstAvailableServer(player, server, authConfig);
+            PlayerLogContext.logWarn(player, "Player "+player.getUsername()+" tried to log in but is already logged in");
             return;
         }
 
         String password = args[0];
         if (authManager.login(player.getUniqueId(), password, ip, player.getUsername())) {
             player.setAuthenticated(true);
-            logger.info("Gracz {} pomyślnie się zalogował z IP {}", player.getUsername(), ip);
+            PlayerLogContext.logInfo(player, "Player "+player.getUsername()+" logged in successfully");
             player.sendMessage(
                     MiniMessage.miniMessage().deserialize(
                             authConfig.getPrefix() + langConfig.getMessage("login-success")
@@ -75,13 +78,14 @@ public class LoginCommand implements SimpleCommand {
                                         + authConfig.getAttemptFailedLoginDelay() + "</bold> s.</red>"
                         )
                 );
-                logger.warn("Gracz {} został zablokowany po wielu nieudanych próbach logowania", player.getUsername());
+                PlayerLogContext.logWarn(player, "Player "+player.getUsername()+" was blocked for too many failed login attempts");
             } else {
                 player.sendMessage(
                         MiniMessage.miniMessage().deserialize(
                                 authConfig.getPrefix() + langConfig.getMessage("invalid-password")
                         )
                 );
+                PlayerLogContext.logWarn(player, "Player "+player.getUsername()+" tried to log in with an invalid password");
             }
         }
     }
