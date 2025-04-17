@@ -12,6 +12,7 @@ import com.velocitypowered.proxy.session.SessionValidationResult;
 import com.velocitypowered.proxy.session.SessionValidator;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 
 import javax.crypto.KeyGenerator;
@@ -64,10 +65,10 @@ public class PremiumConnectionListener {
         logger.info("PreLoginEvent - premium connection listener");
         //net.kyori.adventure.text.Component reasonVPN = net.kyori.adventure.text.Component.text(langConfig.getMessage("vpn-not-allowed")).color(TextColor.color(0xFF0000));
         //net.kyori.adventure.text.Component reasonCountry = net.kyori.adventure.text.Component.text(langConfig.getMessage("country-not-allowed")+"Allowed countries: "+authConfig.getAllowedCountryList()).color(TextColor.color(0xFF0000));
-        Component reasonVPN = (Component) MiniMessage.miniMessage().deserialize(
+        net.kyori.adventure.text.Component reasonVPN = MiniMessage.miniMessage().deserialize(
                 authConfig.getPrefix() + "<newline>" + langConfig.getMessage("vpn-not-allowed") + "<newline><yellow>re-join to login</yellow>"
         );
-        Component reasonCountry = (Component) MiniMessage.miniMessage().deserialize(
+        net.kyori.adventure.text.Component reasonCountry =  MiniMessage.miniMessage().deserialize(
                 authConfig.getPrefix() + "<newline>" + langConfig.getMessage("country-not-allowed") + "<newline><yellow>re-join to login</yellow>"
         );
         boolean isVPNfromMap = false;
