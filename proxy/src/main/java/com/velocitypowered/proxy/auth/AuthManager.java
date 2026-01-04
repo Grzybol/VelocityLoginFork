@@ -191,6 +191,13 @@ public class AuthManager {
         usersCollection.insertOne(doc);
         return true;
     }
+    private String hashPassword(String password) {
+        return BCrypt.hashpw(password, BCrypt.gensalt());
+    }
+
+    private boolean checkPassword(String password, String hashedPassword) {
+        return BCrypt.checkpw(password, hashedPassword);
+    }
     public long getBlockedUntilTime(UUID playerId) {
         return blockedUntil.getOrDefault(playerId, 0L);
     }
@@ -377,13 +384,7 @@ public class AuthManager {
         );
     }
 
-    private String hashPassword(String password) {
-        return BCrypt.hashpw(password, BCrypt.gensalt());
-    }
 
-    private boolean checkPassword(String password, String hashedPassword) {
-        return BCrypt.checkpw(password, hashedPassword);
-    }
 
     // ======================== Zmiana hasła (opcjonalnie) ========================
     public boolean updatePassword(UUID uuid, String newPassword) {

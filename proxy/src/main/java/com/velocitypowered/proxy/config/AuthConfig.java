@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
+import static com.velocitypowered.proxy.protocol.packet.chat.CommandHandler.logger;
 
 public class AuthConfig {
     private final List<String> authServers;
@@ -23,7 +24,8 @@ public class AuthConfig {
     private final String apiKey;
     private final int antyVpnCheckTimeoutHours;
     private final int maxAccountsPerIp;
-    private final List<String> allowedCountryList;
+    private List<String> allowedCountryList;
+
 
     public AuthConfig(ProxyServer server, Path dataDirectory) {
         Path configPath = dataDirectory.resolve("velocity.toml");
@@ -51,10 +53,28 @@ public class AuthConfig {
         this.maxAccountsPerIp = Math.toIntExact(authTable.getLong("maxAccountsPerIp", 3L));
         this.PREFIX = authTable.getString("prefix", "<gold><bold>[BetterServer]</bold></gold> ");
         // Wczytanie listy krajów, domyślnie jeśli brak, to np. ["PL", "US"]
+        /*
         List<String> defaultCountries = List.of("Poland", "Germany", "United States");
         this.allowedCountryList = authTable.contains("allowedCountry")
                 ? authTable.getList("allowedCountry")
                 : defaultCountries;
+
+         */
+        // Load allowed countries list, fallback to defaults if missing or empty
+        List<String> defaultCountries = List.of("*");
+
+        if (!authTable.contains("allowedCountry")) {
+            logger.warn("Config key 'allowedCountry' is missing in [auth] section. Using default values: {}", defaultCountries);
+            this.allowedCountryList = defaultCountries;
+        } else {
+            this.allowedCountryList = authTable.getList("allowedCountry");
+            if (this.allowedCountryList == null || this.allowedCountryList.isEmpty()) {
+                logger.warn("'allowedCountry' list in config is empty. Using default values: {}", defaultCountries);
+                this.allowedCountryList = defaultCountries;
+            } else {
+                logger.info("Loaded allowed countries from config: {}", this.allowedCountryList);
+            }
+        }
 
 
         // 4. Walidacja

@@ -795,9 +795,13 @@ public class ConnectedPlayer implements MinecraftConnectionAssociation, Player, 
         disconnect(res.getReasonComponent());
       } else if (event.getResult() instanceof final RedirectPlayer res) {
         ConnectedPlayer player = this;
-        if(!player.isAuthenticated()){
-            player.disconnect(Component.text("You are not authenticated. Please re-connect"));
-            return;
+        if (!player.isAuthenticated()) {
+          server.getServer(server.getAuthConfig().getAuthServer())
+                  .ifPresentOrElse(
+                          auth -> createConnectionRequest(auth, previousConnection).connect(),
+                          () -> player.disconnect(Component.text("Authentication server unavailable"))
+                  );
+          return;
         }
         createConnectionRequest(res.getServer(), previousConnection).connect()
             .whenCompleteAsync((status, throwable) -> {

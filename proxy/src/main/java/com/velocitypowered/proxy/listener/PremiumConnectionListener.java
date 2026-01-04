@@ -85,28 +85,23 @@ public class PremiumConnectionListener {
             return;
         }
         // Sprawdzenie kraju - DO ODBLOKOWANIA!!!!
-
-        if(authConfig.getAllowedCountryList().contains("*")||authConfig.getAllowedCountryList().isEmpty()){ // Jeśli lista krajów jest pusta, to nie sprawdzamy kraju
+        logger.info("Allowed countries: {}", authConfig.getAllowedCountryList());
+        if(authConfig.getAllowedCountryList().contains("all")||authConfig.getAllowedCountryList().contains("*")||authConfig.getAllowedCountryList().isEmpty()){ // Jeśli lista krajów jest pusta, to nie sprawdzamy kraju
             logger.info("Country check is disabled");
         } else if(!authManager.isFromCountry(event.getConnection().getRemoteAddress().getAddress().getHostAddress(), authConfig.getAllowedCountryList())) {
             logger.info("Country detected for IP {}", event.getConnection().getRemoteAddress().getAddress());
+            logger.info("Country not allowed for IP {}", event.getConnection().getRemoteAddress().getAddress());
             event.setResult(PreLoginEvent.PreLoginComponentResult.denied((net.kyori.adventure.text.Component) reasonCountry));
             return;
         }
-
-
-
         try {
             String username = event.getUsername();
-
             if (mojangPublicKey == null) {
                 logger.error("Mojang public key not available! Skipping serverId generation.");
                 return;
             }
-
             // Generowanie klucza AES (SecretKey)
             SecretKey secretKey = generateAESKey();
-
             // Generowanie Server ID
             String serverId = generateServerId("", mojangPublicKey, secretKey);
             serverIdMap.put(username, serverId);

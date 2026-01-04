@@ -27,7 +27,6 @@ public class MongoDBManager {
 
     /**
      * Nawiązuje połączenie z MongoDB na podstawie connectionString i databaseName.
-     * Możesz też obsłużyć autoryzację itp. w zależności od potrzeb.
      */
     public boolean connect() {
         try {
@@ -40,21 +39,6 @@ public class MongoDBManager {
             return false;
         }
     }
-
-    public MongoDatabase getDatabase() {
-        return database;
-    }
-
-    public void close() {
-        if (mongoClient != null) {
-            mongoClient.close();
-            logger.info("MongoDB connection closed.");
-        }
-    }
-
-    /**
-     * Przykład metody inicjującej bazę danych. Możesz ją wywołać zaraz po connect().
-     */
     public void setupDatabase() {
         if (database == null) {
             logger.error("Database connection is not initialized!");
@@ -76,4 +60,20 @@ public class MongoDBManager {
             logger.info("'antyVPN' collection already exists.");
         }
     }
+
+    public MongoDatabase getDatabase() {
+        return database;
+    }
+
+    public void close() {
+        if (mongoClient != null) {
+            mongoClient.close();
+            logger.info("MongoDB connection closed.");
+        }
+    }
+
+    /**
+     * Przykład metody inicjującej bazę danych. Możesz ją wywołać zaraz po connect().
+     */
+
 }
